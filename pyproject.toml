@@ -1,0 +1,33 @@
+[build-system]
+requires = ["maturin>=1.11,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "fbtk"
+description = "High-performance molecular simulation toolkit with Python bindings"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT OR Apache-2.0" }
+authors = [
+  { name = "Forblaze Project Contributors" },
+]
+keywords = ["molecular-dynamics", "simulation", "builder", "cheminformatics"]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
+]
+dynamic = ["version"]
+
+[project.scripts]
+fbtk-analyze = "fbtk.cli:analyze"
+fbtk-build = "fbtk.cli:build"
+
+[tool.maturin]
+module-name = "fbtk.fbtk"
+compatibility = "off"
+features = ["pyo3/abi3-py38"]

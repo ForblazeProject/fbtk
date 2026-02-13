@@ -1,0 +1,38 @@
+[package]
+name = "fbtk"
+version = "0.9.0"
+authors = ["Forblaze Project Contributors"]
+edition = "2024"
+description = "High-performance molecular simulation toolkit with Python bindings"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/forblaze-project/fbtk"
+readme = "README.md"
+keywords = ["molecular-dynamics", "simulation", "builder", "cheminformatics"]
+categories = ["science"]
+
+[lib]
+name = "fbtk"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "fbtk-analyze"
+path = "src/bin/analyze.rs"
+
+[[bin]]
+name = "fbtk-build"
+path = "src/bin/build.rs"
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py38"] }
+numpy = "0.23"
+rayon = "1.10"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+rand = "0.8"
+purr = "0.9"
+fast-float = "0.2"
+clap = { version = "4.5", features = ["derive"] }
+vsepr-rs = "1.0.0"
+uff-relax = "1.0.0"
+glam = "0.31"

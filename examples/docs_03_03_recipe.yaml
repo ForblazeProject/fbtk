@@ -1,0 +1,27 @@
+system:
+  density: 0.9
+  cell_shape: null
+  temperature: null
+components:
+  - name: "PS"
+    role: "polymer"
+    input:
+      smiles: "[*]CC([*])c1ccccc1"
+      file: null
+      format: null
+    count: null
+    polymer_params:
+      degree: 10
+      n_chains: 10
+      head_index: null
+      tail_index: null
+      head_leaving_index: null
+      tail_leaving_index: null
+  - name: "Toluene"
+    role: "molecule"
+    count: 100
+    input:
+      smiles: "Cc1ccccc1"
+      file: null
+      format: null
+    polymer_params: null

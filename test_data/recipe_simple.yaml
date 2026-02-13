@@ -1,0 +1,16 @@
+system:
+  density: 0.8
+  cell_shape: [20.0, 20.0, 20.0]
+
+components:
+  - name: "ethanol"
+    role: "solvent"
+    input:
+      smiles: "CCO"
+    count: 10
+
+  - name: "water"
+    role: "solvent"
+    input:
+      smiles: "O"
+    count: 50
