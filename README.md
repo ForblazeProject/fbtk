@@ -12,7 +12,7 @@ Designed as a "Transparent Accelerator" for Python (ASE/RDKit) workflows with a 
   - **Built-in 3D Generation**: 3D coordinate generation from SMILES handled by internal VSEPR + UFF engine.
   - **Fast Structural Relaxation**: O(N) Cell-list optimization with the FIRE algorithm.
 - **🔍 Advanced Analysis**: 
-  - Parallel RDF, MSD, COM, Angles, Dihedrals.
+  - Parallel RDF, MSD, COM (Center of Mass), Angles, Dihedrals.
   - O(N) Neighbor List search.
 - **📏 Robust Physics**: Correct handling of PBC, Triclinic cells, and Minimum Image Convention (MIC).
 
@@ -28,11 +28,30 @@ pip install fbtk
 
 ## Usage
 
-### 1. Python Library
+### 1. System Building
 
-The Python API is designed to be minimal and high-performance.
+Build and relax a complex molecular system with just a few lines of code.
 
-#### RDF Analysis
+```python
+import fbtk
+
+# 1. Setup Builder
+builder = fbtk.Builder(density=0.8)
+builder.add_molecule_smiles("ethanol", count=50, smiles="CCO")
+
+# 2. Build and Relax
+system = builder.build()
+system.relax(steps=500)
+
+# 3. Export to ASE
+atoms = system.to_ase()
+atoms.write("system.xyz")
+```
+
+### 2. RDF Analysis
+
+Fast analysis of large trajectories using smart selection queries.
+
 ```python
 from ase.io import read
 import fbtk
@@ -44,33 +63,35 @@ traj = read('simulation.lammpstrj', index=':')
 r, g_r = fbtk.compute_rdf(traj, query="O-H", r_max=10.0)
 ```
 
-#### System Building
-```python
-import fbtk
+---
 
-# 1. Setup Builder
-builder = fbtk.Builder(density=0.8)
-builder.add_molecule_smiles("ethanol", count=50, smiles="CCO")
+### 3. Command Line Interface (CLI)
 
-# 2. Build and Relax
-system = builder.build()
-builder.relax(steps=500)
+FBTK provides standalone CLI tools for batch processing.
 
-# 3. Seamless export to ASE
-atoms = system.to_ase()
-atoms.write("system.xyz")
+#### fbtk-build: Build from Recipe
+```bash
+# Run building and relaxation from a YAML recipe
+fbtk-build --recipe recipe.yaml --relax --output system.mol2
 ```
 
-### 2. Command Line Interface (CLI)
+Example `recipe.yaml`:
+```yaml
+system:
+  density: 0.8
+  cell_shape: [20.0, 20.0, 20.0]
+components:
+  - name: "ethanol"
+    role: "molecule"
+    input:
+      smiles: "CCO"
+    count: 50
+```
 
-After installation, the following commands are available in your environment:
-
+#### fbtk-analyze: Analyze Trajectory
 ```bash
-# RDF Calculation for LAMMPS trajectory
+# Compute RDF for a LAMMPS trajectory
 fbtk-analyze rdf --input traj.lammpstrj --query "type 1 with type 2"
-
-# System Building from YAML recipe
-fbtk-build --recipe recipe.yaml --relax --output system.mol2
 ```
 
 ## Selection Query Syntax
