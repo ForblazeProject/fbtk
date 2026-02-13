@@ -104,4 +104,7 @@ FBTK supports intuitive strings to select atoms for analysis:
 - **Residue**: `"resname STY"`
 
 ---
-(c) 2026 Forblaze Project
+### Author
+**Forblaze Project**  
+Website: [https://forblaze-works.com/](https://forblaze-works.com/)
+
