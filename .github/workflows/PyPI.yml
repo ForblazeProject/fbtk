@@ -1,4 +1,4 @@
-name: Publish to PyPI
+name: Publish to PyPI and GitHub Release
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   linux:
@@ -16,24 +16,36 @@ jobs:
         target: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
       - name: Set up QEMU
         if: matrix.target == 'aarch64'
         uses: docker/setup-qemu-action@v3
-      - name: Build wheels
+      - name: Build wheels and binaries
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist
           sccache: 'true'
           manylinux: auto
+      - name: Package CLI Binaries (Linux)
+        shell: bash
+        run: |
+          PKG_NAME=fbtk-cli-${{ github.ref_name }}-linux-${{ matrix.target }}
+          mkdir -p $PKG_NAME
+          # Maturin builds both the library and the binaries defined in Cargo.toml
+          find target -name fbtk-analyze -type f -executable -exec cp {} $PKG_NAME/ \;
+          find target -name fbtk-build -type f -executable -exec cp {} $PKG_NAME/ \;
+          tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
+          echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.target }}
           path: dist
+      - name: Upload Release Asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-linux-${{ matrix.target }}
+          path: ${{ env.ASSET_PATH }}
 
   windows:
     runs-on: windows-latest
@@ -42,20 +54,31 @@ jobs:
         target: [x64]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - name: Build wheels
+      - name: Build wheels and binaries
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist
           sccache: 'true'
+      - name: Package CLI Binaries (Windows)
+        shell: bash
+        run: |
+          PKG_NAME=fbtk-cli-${{ github.ref_name }}-windows-${{ matrix.target }}
+          mkdir -p $PKG_NAME
+          find target -name fbtk-analyze.exe -exec cp {} $PKG_NAME/ \;
+          find target -name fbtk-build.exe -exec cp {} $PKG_NAME/ \;
+          7z a ${PKG_NAME}.zip $PKG_NAME
+          echo "ASSET_PATH=${PKG_NAME}.zip" >> $GITHUB_ENV
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-windows-${{ matrix.target }}
           path: dist
+      - name: Upload Release Asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-windows-${{ matrix.target }}
+          path: ${{ env.ASSET_PATH }}
 
   macos:
     runs-on: macos-latest
@@ -64,20 +87,31 @@ jobs:
         target: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - name: Build wheels
+      - name: Build wheels and binaries
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist
           sccache: 'true'
+      - name: Package CLI Binaries (macOS)
+        shell: bash
+        run: |
+          PKG_NAME=fbtk-cli-${{ github.ref_name }}-macos-${{ matrix.target }}
+          mkdir -p $PKG_NAME
+          find target -name fbtk-analyze -type f -executable -exec cp {} $PKG_NAME/ \;
+          find target -name fbtk-build -type f -executable -exec cp {} $PKG_NAME/ \;
+          tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
+          echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-macos-${{ matrix.target }}
           path: dist
+      - name: Upload Release Asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-macos-${{ matrix.target }}
+          path: ${{ env.ASSET_PATH }}
 
   publish:
     name: Publish to PyPI
@@ -86,6 +120,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
+          pattern: wheels-*
           merge-multiple: true
           path: dist
       - name: Publish to PyPI
@@ -95,3 +130,19 @@ jobs:
         with:
           command: upload
           args: --non-interactive --skip-existing dist/*
+
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [linux, windows, macos]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: asset-*
+          merge-multiple: true
+          path: assets
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: assets/*
+          generate_release_notes: true

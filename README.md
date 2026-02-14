@@ -20,13 +20,16 @@ Designed as a "Transparent Accelerator" for Python (ASE/RDKit) workflows with a 
 
 ## Installation
 
+### Python Library (Recommended)
 ```bash
 pip install fbtk
 ```
+**Requirements**: Python 3.8+ and NumPy.
 
-### Prerequisites
-- Python 3.8+
-- NumPy
+### Standalone CLI (No Python Required)
+For non-Python environments, pre-compiled standalone binaries for Linux, Windows, and macOS are available on the [GitHub Releases](https://github.com/ForblazeProject/fbtk/releases) page.
+- Download the archive for your platform (e.g., `fbtk-cli-v0.9.1-linux-x86_64.tar.gz`).
+- **Requirements**: None. These are self-contained binaries.
 
 ## Usage
 

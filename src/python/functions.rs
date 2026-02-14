@@ -168,3 +168,18 @@ pub fn from_rdkit(py: Python, mol: PyObject) -> PyResult<PySystem> {
         bonds: template.bonds,
     })
 }
+
+/// Helper function to run the analyze CLI logic from Python
+#[pyfunction]
+pub fn run_analyze_cli(_py: Python, args: Vec<String>) -> PyResult<()> {
+    crate::core::cli::analyze::run_analyze_cli(args).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+    })
+}
+
+#[pyfunction]
+pub fn run_build_cli(_py: Python, args: Vec<String>) -> PyResult<()> {
+    crate::core::cli::build::run_build_cli(args).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+    })
+}

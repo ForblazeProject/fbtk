@@ -26,6 +26,8 @@ fn fbtk(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(build_system, m)?)?;
     m.add_function(wrap_pyfunction!(from_ase, m)?)?;
     m.add_function(wrap_pyfunction!(from_rdkit, m)?)?;
+    m.add_function(wrap_pyfunction!(run_analyze_cli, m)?)?;
+    m.add_function(wrap_pyfunction!(run_build_cli, m)?)?;
 
     Ok(())
 }

@@ -1,6 +1,6 @@
 [package]
 name = "fbtk"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Forblaze Project Contributors"]
 edition = "2024"
 description = "High-performance molecular simulation toolkit with Python bindings"
