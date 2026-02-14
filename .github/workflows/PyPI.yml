@@ -19,14 +19,21 @@ jobs:
       - name: Set up QEMU
         if: matrix.target == 'aarch64'
         uses: docker/setup-qemu-action@v3
-      - name: Build wheels and binaries
+      - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          # Use -- separator to pass --bin flags to cargo
-          args: --release --out dist -- --bin fbtk-analyze --bin fbtk-build
+          args: --release --out dist
           sccache: 'true'
           manylinux: auto
+      - name: Build binaries
+        run: |
+          # Find the directory containing Cargo.toml
+          PROJECT_ROOT=$(find . -name Cargo.toml -exec dirname {} \; | head -n 1)
+          echo "Project root found at: $PROJECT_ROOT"
+          cd $PROJECT_ROOT
+          # Unset RUSTC_WRAPPER to avoid sccache issues on host
+          RUSTC_WRAPPER="" cargo build --release --target ${{ matrix.target == 'x86_64' && 'x86_64-unknown-linux-gnu' || 'aarch64-unknown-linux-gnu' }}
       - name: Package CLI Binaries (Linux)
         shell: bash
         run: |
@@ -34,13 +41,7 @@ jobs:
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-linux-${{ matrix.target }}
           mkdir -p $PKG_NAME
           
-          # Debug: Show the whole tree to find where binaries went
-          echo "--- Files in the workspace ---"
-          ls -F
-          echo "--- Searching for binaries ---"
-          find . -type f -name fbtk-analyze -not -path "*/target/debug/*" -ls
-          
-          # Copy found binaries (assuming we only want those in target/*/release/)
+          # Find binaries anywhere in target directory
           find target -type f -name fbtk-analyze -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
           find target -type f -name fbtk-build -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
           
@@ -48,6 +49,7 @@ jobs:
           
           if [ ! -f $PKG_NAME/fbtk-analyze ] || [ ! -f $PKG_NAME/fbtk-build ]; then
             echo "Error: Binaries not found!"
+            find target -ls
             exit 1
           fi
           
@@ -71,12 +73,18 @@ jobs:
         target: [x64]
     steps:
       - uses: actions/checkout@v4
-      - name: Build wheels and binaries
+      - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist -- --bin fbtk-analyze --bin fbtk-build
+          args: --release --out dist
           sccache: 'true'
+      - name: Build binaries
+        shell: bash
+        run: |
+          PROJECT_ROOT=$(find . -name Cargo.toml -exec dirname {} \; | head -n 1)
+          cd $PROJECT_ROOT
+          RUSTC_WRAPPER="" cargo build --release --target ${{ matrix.target == 'x64' && 'x86_64-pc-windows-msvc' || 'aarch64-pc-windows-msvc' }}
       - name: Package CLI Binaries (Windows)
         shell: bash
         run: |
@@ -91,6 +99,7 @@ jobs:
           
           if [ ! -f $PKG_NAME/fbtk-analyze.exe ] || [ ! -f $PKG_NAME/fbtk-build.exe ]; then
             echo "Error: Binaries not found!"
+            find target -ls
             exit 1
           fi
           
@@ -114,12 +123,17 @@ jobs:
         target: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v4
-      - name: Build wheels and binaries
+      - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist -- --bin fbtk-analyze --bin fbtk-build
+          args: --release --out dist
           sccache: 'true'
+      - name: Build binaries
+        run: |
+          PROJECT_ROOT=$(find . -name Cargo.toml -exec dirname {} \; | head -n 1)
+          cd $PROJECT_ROOT
+          RUSTC_WRAPPER="" cargo build --release --target ${{ matrix.target == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
       - name: Package CLI Binaries (macOS)
         shell: bash
         run: |
@@ -134,6 +148,7 @@ jobs:
           
           if [ ! -f $PKG_NAME/fbtk-analyze ] || [ ! -f $PKG_NAME/fbtk-build ]; then
             echo "Error: Binaries not found!"
+            find target -ls
             exit 1
           fi
           
