@@ -31,7 +31,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           # Build only binaries, without extension-module feature
-          args: --release --out dist --bins
+          args: --release --out dist --bin fbtk-analyze --bin fbtk-build
           sccache: 'true'
           manylinux: auto
       - name: Package CLI Binaries (Linux)
@@ -40,10 +40,19 @@ jobs:
           set -e
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-linux-${{ matrix.target }}
           mkdir -p $PKG_NAME
-          # Find the binaries created by maturin in the target folder
+          
+          # Discovery: Find the binaries in the target directory
           find target -type f -name fbtk-analyze -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
           find target -type f -name fbtk-build -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
+          
           cp LICENSE-* $PKG_NAME/ || true
+          
+          if [ ! -f $PKG_NAME/fbtk-analyze ] || [ ! -f $PKG_NAME/fbtk-build ]; then
+            echo "Error: Binaries not found!"
+            find target -ls
+            exit 1
+          fi
+          
           tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
           echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
       - name: Upload wheels
@@ -74,7 +83,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --bins
+          args: --release --out dist --bin fbtk-analyze --bin fbtk-build
           sccache: 'true'
       - name: Package CLI Binaries (Windows)
         shell: bash
@@ -115,7 +124,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --bins
+          args: --release --out dist --bin fbtk-analyze --bin fbtk-build
           sccache: 'true'
       - name: Package CLI Binaries (macOS)
         shell: bash
