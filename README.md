@@ -1,6 +1,7 @@
 # FBTK: Forblaze Toolkit
 
 ![PyPI - Version](https://img.shields.io/pypi/v/fbtk)
+[![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://fbtk.forblaze-works.com/)
 
 High-performance molecular analysis and building tools powered by Rust.
 Designed as a "Transparent Accelerator" for Python (ASE/RDKit) workflows with a smart, object-oriented interface.

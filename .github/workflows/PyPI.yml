@@ -31,9 +31,9 @@ jobs:
         run: |
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-linux-${{ matrix.target }}
           mkdir -p $PKG_NAME
-          # Maturin builds both the library and the binaries defined in Cargo.toml
-          find target -name fbtk-analyze -type f -executable -exec cp {} $PKG_NAME/ \;
-          find target -name fbtk-build -type f -executable -exec cp {} $PKG_NAME/ \;
+          # Standardize find for compatibility
+          find target -name fbtk-analyze -type f -exec cp {} $PKG_NAME/ \;
+          find target -name fbtk-build -type f -exec cp {} $PKG_NAME/ \;
           tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
           echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
       - name: Upload wheels
@@ -98,8 +98,8 @@ jobs:
         run: |
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-macos-${{ matrix.target }}
           mkdir -p $PKG_NAME
-          find target -name fbtk-analyze -type f -executable -exec cp {} $PKG_NAME/ \;
-          find target -name fbtk-build -type f -executable -exec cp {} $PKG_NAME/ \;
+          find target -name fbtk-analyze -type f -exec cp {} $PKG_NAME/ \;
+          find target -name fbtk-build -type f -exec cp {} $PKG_NAME/ \;
           tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
           echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
       - name: Upload wheels
