@@ -19,13 +19,15 @@ jobs:
       - name: Set up QEMU
         if: matrix.target == 'aarch64'
         uses: docker/setup-qemu-action@v3
-      - name: Build wheels and binaries
+      - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --bin fbtk-analyze --bin fbtk-build
+          args: --release --out dist
           sccache: 'true'
           manylinux: auto
+      - name: Build binaries
+        run: cargo build --release --target ${{ matrix.target == 'x86_64' && 'x86_64-unknown-linux-gnu' || 'aarch64-unknown-linux-gnu' }}
       - name: Package CLI Binaries (Linux)
         shell: bash
         run: |
@@ -33,11 +35,14 @@ jobs:
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-linux-${{ matrix.target }}
           mkdir -p $PKG_NAME
           
-          # Debug: List target contents
-          ls -R target
+          # Find binaries in the target-specific directory
+          TARGET_DIR="target/${{ matrix.target == 'x86_64' && 'x86_64-unknown-linux-gnu' || 'aarch64-unknown-linux-gnu' }}/release"
+          cp $TARGET_DIR/fbtk-analyze $PKG_NAME/
+          cp $TARGET_DIR/fbtk-build $PKG_NAME/
+          cp LICENSE-* $PKG_NAME/ || true
           
-          find target -type f -name fbtk-analyze -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          find target -type f -name fbtk-build -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
+          tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
+          echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
           
           cp LICENSE-* $PKG_NAME/ || true
           
@@ -68,12 +73,14 @@ jobs:
         target: [x64]
     steps:
       - uses: actions/checkout@v4
-      - name: Build wheels and binaries
+      - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --bin fbtk-analyze --bin fbtk-build
+          args: --release --out dist
           sccache: 'true'
+      - name: Build binaries
+        run: cargo build --release --target ${{ matrix.target == 'x64' && 'x86_64-pc-windows-msvc' || 'aarch64-pc-windows-msvc' }}
       - name: Package CLI Binaries (Windows)
         shell: bash
         run: |
@@ -81,11 +88,13 @@ jobs:
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-windows-${{ matrix.target }}
           mkdir -p $PKG_NAME
           
-          # Debug: List target contents
-          ls -R target
+          TARGET_DIR="target/${{ matrix.target == 'x64' && 'x86_64-pc-windows-msvc' || 'aarch64-pc-windows-msvc' }}/release"
+          cp $TARGET_DIR/fbtk-analyze.exe $PKG_NAME/
+          cp $TARGET_DIR/fbtk-build.exe $PKG_NAME/
+          cp LICENSE-* $PKG_NAME/ || true
           
-          find target -type f -name fbtk-analyze.exe -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          find target -type f -name fbtk-build.exe -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
+          7z a ${PKG_NAME}.zip $PKG_NAME
+          echo "ASSET_PATH=${PKG_NAME}.zip" >> $GITHUB_ENV
           
           cp LICENSE-* $PKG_NAME/ || true
           
@@ -115,12 +124,14 @@ jobs:
         target: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v4
-      - name: Build wheels and binaries
+      - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --bin fbtk-analyze --bin fbtk-build
+          args: --release --out dist
           sccache: 'true'
+      - name: Build binaries
+        run: cargo build --release --target ${{ matrix.target == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
       - name: Package CLI Binaries (macOS)
         shell: bash
         run: |
@@ -128,11 +139,13 @@ jobs:
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-macos-${{ matrix.target }}
           mkdir -p $PKG_NAME
           
-          # Debug: List target contents
-          ls -R target
+          TARGET_DIR="target/${{ matrix.target == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}/release"
+          cp $TARGET_DIR/fbtk-analyze $PKG_NAME/
+          cp $TARGET_DIR/fbtk-build $PKG_NAME/
+          cp LICENSE-* $PKG_NAME/ || true
           
-          find target -type f -name fbtk-analyze -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          find target -type f -name fbtk-build -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
+          tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
+          echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
           
           cp LICENSE-* $PKG_NAME/ || true
           
