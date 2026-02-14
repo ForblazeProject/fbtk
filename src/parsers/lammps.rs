@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use anyhow::{Result, anyhow};
-use numpy::ndarray::{Array3};
+use ndarray::{Array3};
 
 pub struct LammpsFrame {
     pub timestep: u64,

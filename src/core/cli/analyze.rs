@@ -5,7 +5,7 @@ use crate::core::rdf::{compute_rdf_core, RdfParams};
 use crate::core::msd::{compute_msd_core};
 use crate::parsers::lammps::{parse_dump_file, traj_to_ndarray, get_atom_info};
 use crate::core::selection::SelectionEngine;
-use numpy::ndarray::{Array3};
+use ndarray::{Array3};
 
 #[derive(Parser)]
 #[command(name = "fbtk-analyze")]

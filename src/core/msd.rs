@@ -1,4 +1,4 @@
-use numpy::ndarray::{Array2, ArrayView3};
+use ndarray::{Array2, ArrayView3};
 use rayon::prelude::*;
 use glam::DVec3;
 
@@ -25,7 +25,7 @@ pub fn compute_msd_core(
     let mut unwrapped = Array2::<f64>::zeros((n_frames, n_atoms * 3));
 
     // First frame initialization
-    let pos0 = positions.index_axis(numpy::ndarray::Axis(0), 0);
+    let pos0 = positions.index_axis(ndarray::Axis(0), 0);
     for (idx, &atom_idx) in indices.iter().enumerate() {
         unwrapped[[0, idx * 3 + 0]] = pos0[[atom_idx, 0]];
         unwrapped[[0, idx * 3 + 1]] = pos0[[atom_idx, 1]];
@@ -34,8 +34,8 @@ pub fn compute_msd_core(
 
     // Sequential unwrapping
     for t in 1..n_frames {
-        let pos_curr = positions.index_axis(numpy::ndarray::Axis(0), t);
-        let cell_prev = cells.index_axis(numpy::ndarray::Axis(0), t - 1);
+        let pos_curr = positions.index_axis(ndarray::Axis(0), t);
+        let cell_prev = cells.index_axis(ndarray::Axis(0), t - 1);
         
         let lx = cell_prev[[0, 0]];
         let ly = cell_prev[[1, 1]];

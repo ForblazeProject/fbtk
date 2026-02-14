@@ -1,4 +1,4 @@
-use numpy::ndarray::{ArrayView2, ArrayView3};
+use ndarray::{ArrayView2, ArrayView3};
 use rayon::prelude::*;
 
 pub struct RdfParams {
@@ -32,8 +32,8 @@ pub fn compute_rdf_core(
         .into_par_iter()
         .map(|frame_idx| {
             let mut local_hist = vec![0u64; params.n_bins];
-            let pos_frame = positions.index_axis(numpy::ndarray::Axis(0), frame_idx);
-            let cell = cells.index_axis(numpy::ndarray::Axis(0), frame_idx);
+            let pos_frame = positions.index_axis(ndarray::Axis(0), frame_idx);
+            let cell = cells.index_axis(ndarray::Axis(0), frame_idx);
 
             let cell_mat = glam::DMat3::from_cols_array_2d(&[
                 [cell[[0, 0]], cell[[0, 1]], cell[[0, 2]]],
@@ -88,7 +88,7 @@ pub fn compute_rdf_core(
     
     let mut total_volume = 0.0;
     for i in 0..n_frames {
-        let c = cells.index_axis(numpy::ndarray::Axis(0), i);
+        let c = cells.index_axis(ndarray::Axis(0), i);
         // volume = |det(h)|
         let vol = c[[0,0]] * (c[[1,1]]*c[[2,2]] - c[[1,2]]*c[[2,1]])
                 - c[[0,1]] * (c[[1,0]]*c[[2,2]] - c[[1,2]]*c[[2,0]])

@@ -1,5 +1,5 @@
 use glam::{DMat3, DVec3, DQuat};
-use numpy::ndarray::{Array1, Array2, ArrayView2};
+use ndarray::{Array1, Array2, ArrayView2};
 
 /// Manual inversion of a 3x3 matrix using glam.
 pub fn invert_3x3(m: &ArrayView2<f64>) -> Option<Array2<f64>> {

@@ -5,7 +5,7 @@ use crate::core::selection::SelectionEngine;
 use crate::core::rdf::{RdfParams, compute_rdf_core};
 use crate::core::msd::compute_msd_core;
 use numpy::ToPyArray;
-use numpy::ndarray::Array3;
+use ndarray::Array3;
 
 /// Compute RDF with smart query.
 #[pyfunction]

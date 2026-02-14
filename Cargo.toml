@@ -23,6 +23,7 @@ name = "fbtk-build"
 path = "src/bin/build.rs"
 
 [dependencies]
+ndarray = "0.16"
 pyo3 = { version = "0.23", features = ["abi3-py38"], optional = true }
 numpy = { version = "0.23", optional = true }
 rayon = "1.10"
