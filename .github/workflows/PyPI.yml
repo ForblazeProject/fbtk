@@ -19,33 +19,28 @@ jobs:
       - name: Set up QEMU
         if: matrix.target == 'aarch64'
         uses: docker/setup-qemu-action@v3
-      - name: Build wheels
+      - name: Build Wheel
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist
+          args: --release --out dist --features extension-module
           sccache: 'true'
           manylinux: auto
-      - name: Debug - List Files
-        run: |
-          echo "Current working directory: $(pwd)"
-          ls -F
-          find . -maxdepth 3 -name "Cargo.toml"
-          find . -maxdepth 3 -name "src"
-      - name: Build binaries
-        run: |
-          # Ensure we are in the directory containing Cargo.toml
-          PROJECT_ROOT=$(find . -name Cargo.toml -exec dirname {} \; | head -n 1)
-          cd "$PROJECT_ROOT"
-          echo "Building in $PROJECT_ROOT"
-          RUSTC_WRAPPER="" cargo build --release --target ${{ matrix.target == 'x86_64' && 'x86_64-unknown-linux-gnu' || 'aarch64-unknown-linux-gnu' }}
+      - name: Build Standalone Binaries
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          # Build only binaries, without extension-module feature
+          args: --release --out dist --bins
+          sccache: 'true'
+          manylinux: auto
       - name: Package CLI Binaries (Linux)
         shell: bash
         run: |
           set -e
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-linux-${{ matrix.target }}
           mkdir -p $PKG_NAME
-          # Find binaries in the target directory
+          # Find the binaries created by maturin in the target folder
           find target -type f -name fbtk-analyze -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
           find target -type f -name fbtk-build -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
           cp LICENSE-* $PKG_NAME/ || true
@@ -69,18 +64,18 @@ jobs:
         target: [x64]
     steps:
       - uses: actions/checkout@v4
-      - name: Build wheels
+      - name: Build Wheel
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist
+          args: --release --out dist --features extension-module
           sccache: 'true'
-      - name: Build binaries
-        shell: bash
-        run: |
-          PROJECT_ROOT=$(find . -name Cargo.toml -exec dirname {} \; | head -n 1)
-          cd "$PROJECT_ROOT"
-          RUSTC_WRAPPER="" cargo build --release --target ${{ matrix.target == 'x64' && 'x86_64-pc-windows-msvc' || 'aarch64-pc-windows-msvc' }}
+      - name: Build Standalone Binaries
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist --bins
+          sccache: 'true'
       - name: Package CLI Binaries (Windows)
         shell: bash
         run: |
@@ -110,17 +105,18 @@ jobs:
         target: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v4
-      - name: Build wheels
+      - name: Build Wheel
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist
+          args: --release --out dist --features extension-module
           sccache: 'true'
-      - name: Build binaries
-        run: |
-          PROJECT_ROOT=$(find . -name Cargo.toml -exec dirname {} \; | head -n 1)
-          cd "$PROJECT_ROOT"
-          RUSTC_WRAPPER="" cargo build --release --target ${{ matrix.target == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
+      - name: Build Standalone Binaries
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist --bins
+          sccache: 'true'
       - name: Package CLI Binaries (macOS)
         shell: bash
         run: |
