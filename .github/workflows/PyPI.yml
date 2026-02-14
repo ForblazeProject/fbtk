@@ -9,149 +9,112 @@ permissions:
   contents: write
 
 jobs:
-  linux:
-    runs-on: ubuntu-latest
+  # 1. Build Python Wheels
+  build-wheels:
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         target: [x86_64, aarch64]
+        exclude:
+          - os: windows-latest
+            target: aarch64
     steps:
       - uses: actions/checkout@v4
       - name: Set up QEMU
-        if: matrix.target == 'aarch64'
+        if: matrix.os == 'ubuntu-latest' && matrix.target == 'aarch64'
         uses: docker/setup-qemu-action@v3
-      - name: Build Wheel
+      - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
+          # Enable extension-module only for wheels
           args: --release --out dist --features extension-module
           sccache: 'true'
           manylinux: auto
-      - name: Build Standalone Binaries
-        uses: PyO3/maturin-action@v1
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
         with:
+          name: wheels-${{ matrix.os }}-${{ matrix.target }}
+          path: dist
+
+  # 2. Build Standalone Binaries
+  build-binaries:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            suffix: linux-x86_64
+            binary_ext: ""
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            suffix: linux-aarch64
+            binary_ext: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            suffix: windows-x64
+            binary_ext: ".exe"
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            suffix: macos-x86_64
+            binary_ext: ""
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            suffix: macos-aarch64
+            binary_ext: ""
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      
+      - name: Build with Cargo
+        if: matrix.os != 'ubuntu-latest' || matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cargo build --release --target ${{ matrix.target }}
+      
+      - name: Build with Cross (Linux AArch64)
+        if: matrix.os == 'ubuntu-latest' && matrix.target == 'aarch64-unknown-linux-gnu'
+        uses: cross-rs/cross-action@v1
+        with:
+          command: build
           target: ${{ matrix.target }}
-          # Build only binaries, without extension-module feature
-          args: --release --out dist --bin fbtk-analyze --bin fbtk-build
-          sccache: 'true'
-          manylinux: auto
-      - name: Package CLI Binaries (Linux)
+          args: --release
+          
+      - name: Package Binaries
         shell: bash
         run: |
-          set -e
-          PKG_NAME=fbtk-cli-${{ github.ref_name }}-linux-${{ matrix.target }}
+          PKG_NAME=fbtk-cli-${{ github.ref_name }}-${{ matrix.suffix }}
           mkdir -p $PKG_NAME
-          
-          # Discovery: Find the binaries in the target directory
-          find target -type f -name fbtk-analyze -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          find target -type f -name fbtk-build -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          
-          cp LICENSE-* $PKG_NAME/ || true
-          
-          if [ ! -f $PKG_NAME/fbtk-analyze ] || [ ! -f $PKG_NAME/fbtk-build ]; then
-            echo "Error: Binaries not found!"
-            find target -ls
-            exit 1
+          BIN_DIR="target/${{ matrix.target }}/release"
+          # Handle potential path differences for cross
+          if [ ! -f $BIN_DIR/fbtk-analyze${{ matrix.binary_ext }} ]; then
+            BIN_DIR="target/release"
           fi
+          cp $BIN_DIR/fbtk-analyze${{ matrix.binary_ext }} $PKG_NAME/
+          cp $BIN_DIR/fbtk-build${{ matrix.binary_ext }} $PKG_NAME/
+          cp LICENSE-* $PKG_NAME/ || true
           
-          tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
-          echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-linux-${{ matrix.target }}
-          path: dist
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            7z a ${PKG_NAME}.zip $PKG_NAME
+            echo "ASSET_PATH=${PKG_NAME}.zip" >> $GITHUB_ENV
+          else
+            tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
+            echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
+          fi
       - name: Upload Release Asset
         uses: actions/upload-artifact@v4
         with:
-          name: asset-linux-${{ matrix.target }}
+          name: asset-${{ matrix.suffix }}
           path: ${{ env.ASSET_PATH }}
 
-  windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        target: [x64]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Wheel
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist --features extension-module
-          sccache: 'true'
-      - name: Build Standalone Binaries
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist --bin fbtk-analyze --bin fbtk-build
-          sccache: 'true'
-      - name: Package CLI Binaries (Windows)
-        shell: bash
-        run: |
-          set -e
-          PKG_NAME=fbtk-cli-${{ github.ref_name }}-windows-${{ matrix.target }}
-          mkdir -p $PKG_NAME
-          find target -type f -name fbtk-analyze.exe -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          find target -type f -name fbtk-build.exe -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          cp LICENSE-* $PKG_NAME/ || true
-          7z a ${PKG_NAME}.zip $PKG_NAME
-          echo "ASSET_PATH=${PKG_NAME}.zip" >> $GITHUB_ENV
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-windows-${{ matrix.target }}
-          path: dist
-      - name: Upload Release Asset
-        uses: actions/upload-artifact@v4
-        with:
-          name: asset-windows-${{ matrix.target }}
-          path: ${{ env.ASSET_PATH }}
-
-  macos:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        target: [x86_64, aarch64]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Wheel
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist --features extension-module
-          sccache: 'true'
-      - name: Build Standalone Binaries
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist --bin fbtk-analyze --bin fbtk-build
-          sccache: 'true'
-      - name: Package CLI Binaries (macOS)
-        shell: bash
-        run: |
-          set -e
-          PKG_NAME=fbtk-cli-${{ github.ref_name }}-macos-${{ matrix.target }}
-          mkdir -p $PKG_NAME
-          find target -type f -name fbtk-analyze -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          find target -type f -name fbtk-build -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          cp LICENSE-* $PKG_NAME/ || true
-          tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
-          echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-macos-${{ matrix.target }}
-          path: dist
-      - name: Upload Release Asset
-        uses: actions/upload-artifact@v4
-        with:
-          name: asset-macos-${{ matrix.target }}
-          path: ${{ env.ASSET_PATH }}
-
-  publish:
+  # 3. Publish to PyPI
+  publish-pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
-    needs: [linux, windows, macos]
+    needs: [build-wheels]
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -166,10 +129,11 @@ jobs:
           command: upload
           args: --non-interactive --skip-existing dist/*
 
+  # 4. Create GitHub Release
   github-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [linux, windows, macos]
+    needs: [build-binaries]
     steps:
       - uses: actions/download-artifact@v4
         with:
