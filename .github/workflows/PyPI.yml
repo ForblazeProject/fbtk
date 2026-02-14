@@ -28,7 +28,6 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          # Enable extension-module only for wheels
           args: --release --out dist --features extension-module
           sccache: 'true'
           manylinux: auto
@@ -66,18 +65,19 @@ jobs:
             binary_ext: ""
     steps:
       - uses: actions/checkout@v4
+      
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
       
-      - name: Build with Cargo
-        if: matrix.os != 'ubuntu-latest' || matrix.target == 'x86_64-unknown-linux-gnu'
+      - name: Build with Cargo (Native/Windows/Mac)
+        if: matrix.target != 'aarch64-unknown-linux-gnu'
         run: cargo build --release --target ${{ matrix.target }}
       
       - name: Build with Cross (Linux AArch64)
-        if: matrix.os == 'ubuntu-latest' && matrix.target == 'aarch64-unknown-linux-gnu'
-        uses: cross-rs/cross-action@v1
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        uses: houseabsolute/actions-rust-cross@v0
         with:
           command: build
           target: ${{ matrix.target }}
@@ -88,13 +88,29 @@ jobs:
         run: |
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-${{ matrix.suffix }}
           mkdir -p $PKG_NAME
-          BIN_DIR="target/${{ matrix.target }}/release"
-          # Handle potential path differences for cross
-          if [ ! -f $BIN_DIR/fbtk-analyze${{ matrix.binary_ext }} ]; then
-            BIN_DIR="target/release"
+          
+          # Binary search logic
+          SEARCH_DIRS=(
+            "target/${{ matrix.target }}/release"
+            "target/release"
+          )
+          
+          FOUND=0
+          for dir in "${SEARCH_DIRS[@]}"; do
+            if [ -f "$dir/fbtk-analyze${{ matrix.binary_ext }}" ]; then
+              cp "$dir/fbtk-analyze${{ matrix.binary_ext }}" $PKG_NAME/
+              cp "$dir/fbtk-build${{ matrix.binary_ext }}" $PKG_NAME/
+              FOUND=1
+              break
+            fi
+          done
+          
+          if [ $FOUND -eq 0 ]; then
+            echo "Error: Binaries not found!"
+            find target -name "fbtk-analyze*"
+            exit 1
           fi
-          cp $BIN_DIR/fbtk-analyze${{ matrix.binary_ext }} $PKG_NAME/
-          cp $BIN_DIR/fbtk-build${{ matrix.binary_ext }} $PKG_NAME/
+          
           cp LICENSE-* $PKG_NAME/ || true
           
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
@@ -104,6 +120,7 @@ jobs:
             tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
             echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
           fi
+          
       - name: Upload Release Asset
         uses: actions/upload-artifact@v4
         with:
