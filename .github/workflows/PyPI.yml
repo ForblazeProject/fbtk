@@ -28,8 +28,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          # Maturin will use [tool.maturin.features = ["python"]] from pyproject.toml
-          args: --release --out dist
+          args: --release --out dist --features python
           sccache: 'true'
           manylinux: auto
       - name: Upload wheels
@@ -65,10 +64,9 @@ jobs:
             suffix: macos-aarch64
             binary_ext: ""
     env:
-      PYO3_NO_PYTHON: 1 # Ensure pyo3-build-config doesn't look for Python
+      PYO3_NO_PYTHON: 1
     steps:
       - uses: actions/checkout@v4
-      
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -92,28 +90,24 @@ jobs:
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-${{ matrix.suffix }}
           mkdir -p $PKG_NAME
           
-          # Binary search logic
-          SEARCH_DIRS=(
-            "target/${{ matrix.target }}/release"
-            "target/release"
-          )
-          
-          FOUND=0
-          for dir in "${SEARCH_DIRS[@]}"; do
+          # We know the binaries are in target/<target>/release or target/release (for cross)
+          # Try all common locations
+          BIN_SRC=""
+          for dir in "target/${{ matrix.target }}/release" "target/release" "target/aarch64-unknown-linux-gnu/release"; do
             if [ -f "$dir/fbtk-analyze${{ matrix.binary_ext }}" ]; then
-              cp "$dir/fbtk-analyze${{ matrix.binary_ext }}" $PKG_NAME/
-              cp "$dir/fbtk-build${{ matrix.binary_ext }}" $PKG_NAME/
-              FOUND=1
+              BIN_SRC=$dir
               break
             fi
           done
           
-          if [ $FOUND -eq 0 ]; then
+          if [ -z "$BIN_SRC" ]; then
             echo "Error: Binaries not found!"
             find target -name "fbtk-analyze*"
             exit 1
           fi
           
+          cp $BIN_SRC/fbtk-analyze${{ matrix.binary_ext }} $PKG_NAME/
+          cp $BIN_SRC/fbtk-build${{ matrix.binary_ext }} $PKG_NAME/
           cp LICENSE-* $PKG_NAME/ || true
           
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
