@@ -63,22 +63,21 @@ jobs:
             target: aarch64-apple-darwin
             suffix: macos-aarch64
             binary_ext: ""
-    env:
-      PYO3_NO_PYTHON: 1
     steps:
       - uses: actions/checkout@v4
+      
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
       
-      - name: Build with Cargo (Native/Windows/Mac)
+      - name: Build with Cargo
         if: matrix.target != 'aarch64-unknown-linux-gnu'
         run: cargo build --release --target ${{ matrix.target }}
       
       - name: Build with Cross (Linux AArch64)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
-        uses: houseabsolute/actions-rust-cross@v0
+        uses: cross-rs/cross-action@v1
         with:
           command: build
           target: ${{ matrix.target }}
@@ -90,24 +89,15 @@ jobs:
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-${{ matrix.suffix }}
           mkdir -p $PKG_NAME
           
-          # We know the binaries are in target/<target>/release or target/release (for cross)
-          # Try all common locations
-          BIN_SRC=""
-          for dir in "target/${{ matrix.target }}/release" "target/release" "target/aarch64-unknown-linux-gnu/release"; do
-            if [ -f "$dir/fbtk-analyze${{ matrix.binary_ext }}" ]; then
-              BIN_SRC=$dir
-              break
-            fi
-          done
-          
-          if [ -z "$BIN_SRC" ]; then
-            echo "Error: Binaries not found!"
-            find target -name "fbtk-analyze*"
-            exit 1
+          # Target binary search
+          BIN_DIR="target/${{ matrix.target }}/release"
+          # Sometimes cross or local cargo puts it in different places
+          if [ ! -f $BIN_DIR/fbtk-analyze${{ matrix.binary_ext }} ]; then
+            BIN_DIR="target/release"
           fi
           
-          cp $BIN_SRC/fbtk-analyze${{ matrix.binary_ext }} $PKG_NAME/
-          cp $BIN_SRC/fbtk-build${{ matrix.binary_ext }} $PKG_NAME/
+          cp $BIN_DIR/fbtk-analyze${{ matrix.binary_ext }} $PKG_NAME/
+          cp $BIN_DIR/fbtk-build${{ matrix.binary_ext }} $PKG_NAME/
           cp LICENSE-* $PKG_NAME/ || true
           
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
