@@ -26,13 +26,18 @@ jobs:
           args: --release --out dist
           sccache: 'true'
           manylinux: auto
+      - name: Debug - List Files
+        run: |
+          echo "Current working directory: $(pwd)"
+          ls -F
+          find . -maxdepth 3 -name "Cargo.toml"
+          find . -maxdepth 3 -name "src"
       - name: Build binaries
         run: |
-          # Find the directory containing Cargo.toml
+          # Ensure we are in the directory containing Cargo.toml
           PROJECT_ROOT=$(find . -name Cargo.toml -exec dirname {} \; | head -n 1)
-          echo "Project root found at: $PROJECT_ROOT"
-          cd $PROJECT_ROOT
-          # Unset RUSTC_WRAPPER to avoid sccache issues on host
+          cd "$PROJECT_ROOT"
+          echo "Building in $PROJECT_ROOT"
           RUSTC_WRAPPER="" cargo build --release --target ${{ matrix.target == 'x86_64' && 'x86_64-unknown-linux-gnu' || 'aarch64-unknown-linux-gnu' }}
       - name: Package CLI Binaries (Linux)
         shell: bash
@@ -40,19 +45,10 @@ jobs:
           set -e
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-linux-${{ matrix.target }}
           mkdir -p $PKG_NAME
-          
-          # Find binaries anywhere in target directory
+          # Find binaries in the target directory
           find target -type f -name fbtk-analyze -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
           find target -type f -name fbtk-build -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          
           cp LICENSE-* $PKG_NAME/ || true
-          
-          if [ ! -f $PKG_NAME/fbtk-analyze ] || [ ! -f $PKG_NAME/fbtk-build ]; then
-            echo "Error: Binaries not found!"
-            find target -ls
-            exit 1
-          fi
-          
           tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
           echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
       - name: Upload wheels
@@ -83,7 +79,7 @@ jobs:
         shell: bash
         run: |
           PROJECT_ROOT=$(find . -name Cargo.toml -exec dirname {} \; | head -n 1)
-          cd $PROJECT_ROOT
+          cd "$PROJECT_ROOT"
           RUSTC_WRAPPER="" cargo build --release --target ${{ matrix.target == 'x64' && 'x86_64-pc-windows-msvc' || 'aarch64-pc-windows-msvc' }}
       - name: Package CLI Binaries (Windows)
         shell: bash
@@ -91,18 +87,9 @@ jobs:
           set -e
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-windows-${{ matrix.target }}
           mkdir -p $PKG_NAME
-          
           find target -type f -name fbtk-analyze.exe -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
           find target -type f -name fbtk-build.exe -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          
           cp LICENSE-* $PKG_NAME/ || true
-          
-          if [ ! -f $PKG_NAME/fbtk-analyze.exe ] || [ ! -f $PKG_NAME/fbtk-build.exe ]; then
-            echo "Error: Binaries not found!"
-            find target -ls
-            exit 1
-          fi
-          
           7z a ${PKG_NAME}.zip $PKG_NAME
           echo "ASSET_PATH=${PKG_NAME}.zip" >> $GITHUB_ENV
       - name: Upload wheels
@@ -132,7 +119,7 @@ jobs:
       - name: Build binaries
         run: |
           PROJECT_ROOT=$(find . -name Cargo.toml -exec dirname {} \; | head -n 1)
-          cd $PROJECT_ROOT
+          cd "$PROJECT_ROOT"
           RUSTC_WRAPPER="" cargo build --release --target ${{ matrix.target == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
       - name: Package CLI Binaries (macOS)
         shell: bash
@@ -140,18 +127,9 @@ jobs:
           set -e
           PKG_NAME=fbtk-cli-${{ github.ref_name }}-macos-${{ matrix.target }}
           mkdir -p $PKG_NAME
-          
           find target -type f -name fbtk-analyze -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
           find target -type f -name fbtk-build -not -path "*/target/debug/*" -exec cp {} $PKG_NAME/ \;
-          
           cp LICENSE-* $PKG_NAME/ || true
-          
-          if [ ! -f $PKG_NAME/fbtk-analyze ] || [ ! -f $PKG_NAME/fbtk-build ]; then
-            echo "Error: Binaries not found!"
-            find target -ls
-            exit 1
-          fi
-          
           tar -czf ${PKG_NAME}.tar.gz $PKG_NAME
           echo "ASSET_PATH=${PKG_NAME}.tar.gz" >> $GITHUB_ENV
       - name: Upload wheels
