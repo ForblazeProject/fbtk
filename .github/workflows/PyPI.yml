@@ -63,6 +63,8 @@ jobs:
             target: aarch64-apple-darwin
             suffix: macos-aarch64
             binary_ext: ""
+    env:
+      PYO3_NO_PYTHON: 1
     steps:
       - uses: actions/checkout@v4
       
@@ -77,7 +79,7 @@ jobs:
       
       - name: Build with Cross (Linux AArch64)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
-        uses: cross-rs/cross-action@v1
+        uses: houseabsolute/actions-rust-cross@v0
         with:
           command: build
           target: ${{ matrix.target }}
