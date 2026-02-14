@@ -23,8 +23,8 @@ name = "fbtk-build"
 path = "src/bin/build.rs"
 
 [dependencies]
-pyo3 = { version = "0.23", features = ["abi3-py38"] }
-numpy = "0.23"
+pyo3 = { version = "0.23", features = ["abi3-py38"], optional = true }
+numpy = { version = "0.23", optional = true }
 rayon = "1.10"
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -38,4 +38,5 @@ uff-relax = "1.0.0"
 glam = "0.31"
 
 [features]
+python = ["pyo3", "numpy", "extension-module"]
 extension-module = ["pyo3/extension-module"]

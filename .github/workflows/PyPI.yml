@@ -28,7 +28,8 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --features extension-module
+          # Maturin will use [tool.maturin.features = ["python"]] from pyproject.toml
+          args: --release --out dist
           sccache: 'true'
           manylinux: auto
       - name: Upload wheels
@@ -63,6 +64,8 @@ jobs:
             target: aarch64-apple-darwin
             suffix: macos-aarch64
             binary_ext: ""
+    env:
+      PYO3_NO_PYTHON: 1 # Ensure pyo3-build-config doesn't look for Python
     steps:
       - uses: actions/checkout@v4
       

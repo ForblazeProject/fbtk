@@ -1,11 +1,17 @@
 pub mod core;
 pub mod parsers;
+
+#[cfg(feature = "python")]
 pub mod python;
 
+#[cfg(feature = "python")]
 use pyo3::prelude::*;
+#[cfg(feature = "python")]
 use crate::python::{PyBuilder, PySystem, PyMolecule};
+#[cfg(feature = "python")]
 use crate::python::functions::*;
 
+#[cfg(feature = "python")]
 #[pymodule]
 fn fbtk(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Thread pool initialization
