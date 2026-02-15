@@ -4,13 +4,13 @@ system:
 
 components:
   - name: "ethanol"
-    role: "solvent"
+    role: "molecule"
     input:
       smiles: "CCO"
     count: 10
 
   - name: "water"
-    role: "solvent"
+    role: "molecule"
     input:
       smiles: "O"
     count: 50

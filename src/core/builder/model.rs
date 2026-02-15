@@ -17,7 +17,20 @@ impl Builder {
     pub fn new() -> Self { Self { recipe: None, system: None, templates: HashMap::new() } }
     pub fn set_recipe(&mut self, recipe: Recipe) { self.recipe = Some(recipe); }
     pub fn add_template(&mut self, name: String, template: MoleculeTemplate) { self.templates.insert(name, template); }
-    pub fn load_template_file(&mut self, _name: &str, path: &str) -> Result<()> { println!("Loading {}", path); Ok(()) }
+    
+    pub fn load_template_file(&mut self, name: &str, path: &str) -> Result<()> {
+        let content = std::fs::read_to_string(path)?;
+        let ext = std::path::Path::new(path).extension().and_then(|s| s.to_str()).unwrap_or("");
+        
+        let template = match ext {
+            "mol2" => crate::parsers::mol2::parse_mol2(&content)?,
+            "mol" | "sdf" => crate::parsers::mol::parse_mol(&content)?,
+            _ => return Err(anyhow::anyhow!("Unsupported template format: {}. Only .mol2 and .mol are supported.", ext)),
+        };
+        
+        self.add_template(name.to_string(), template);
+        Ok(())
+    }
 
     fn generate_chain(monomer: &MoleculeTemplate, params: &PolymerParams) -> Result<MoleculeTemplate> {
         let mut chain_atoms = Vec::new(); 
