@@ -1,0 +1,10 @@
+system:
+  density: 0.8
+  cell_shape: [20.0, 20.0, 20.0]
+
+components:
+  - name: "tiny"
+    role: "molecule"
+    input:
+      file: "tiny.mol2"
+    count: 5

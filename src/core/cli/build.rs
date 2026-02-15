@@ -36,7 +36,7 @@ pub fn run_build_cli(args: Vec<String>) -> Result<()> {
     }).unwrap_or(4);
 
     if rayon::ThreadPoolBuilder::new().num_threads(num_threads).build_global().is_err() {
-        eprintln!("Warning: Failed to initialize thread pool (already initialized?)");
+        // Already initialized, which is fine
     }
 
     println!("Forblaze Toolkit (c) 2026 Forblaze Project https://forblaze-works.com/");

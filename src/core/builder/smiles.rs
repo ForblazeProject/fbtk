@@ -25,6 +25,7 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
     // 1. Create Heavy Atoms
     for (i, node) in nodes.iter().enumerate() {
         let mut aromatic = false;
+        let mut charge = 0.0;
         let element = match &node.kind {
             AtomKind::Star => "R".to_string(), // Treat * as Dummy "R"
             AtomKind::Aliphatic(e) => e.to_string(),
@@ -32,11 +33,40 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
                 aromatic = true;
                 let mut s = e.to_string();
                 if let Some(first) = s.get_mut(0..1) {
-                    first.make_ascii_uppercase();
+                    let f: &mut str = first;
+                    f.make_ascii_uppercase();
                 }
                 s
             },
-            _ => "X".to_string(),
+            AtomKind::Bracket { symbol, charge: c, .. } => {
+                charge = if let Some(val) = c {
+                    let s = format!("{:?}", val);
+                    match s.as_str() {
+                        "One" => 1.0,
+                        "Two" => 2.0,
+                        "Three" => 3.0,
+                        "Four" => 4.0,
+                        "MinusOne" => -1.0,
+                        "MinusTwo" => -2.0,
+                        "MinusThree" => -3.0,
+                        "MinusFour" => -4.0,
+                        _ => 0.0,
+                    }
+                } else { 0.0 };
+                let mut s = symbol.to_string();
+                if s == "*" {
+                    "R".to_string()
+                } else {
+                    if s.chars().next().unwrap_or(' ').is_lowercase() {
+                        aromatic = true;
+                        if let Some(first) = s.get_mut(0..1) {
+                            let f: &mut str = first;
+                            f.make_ascii_uppercase();
+                        }
+                    }
+                    s
+                }
+            },
         };
         is_aromatic.push(aromatic);
 
@@ -51,7 +81,7 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
             element: element.clone(),
             atom_type: element.clone(),
             position: [i as f64 * 1.5, noise_y, noise_z].into(),
-            charge: 0.0,
+            charge,
             chain_index: 0,
         });
     }
@@ -86,6 +116,11 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
     for i in 0..n_heavy {
         let element = &atoms[i].element;
         if element == "R" { continue; } // Do not add H to dummy atoms
+        
+        // Skip hydrogen addition for ions (non-zero charge)
+        if atoms[i].charge.abs() > 0.1 {
+            continue;
+        }
         
         let mut current_valence = 0.0;
         

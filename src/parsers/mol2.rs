@@ -116,6 +116,10 @@ fn parse_mol2_internal(content: &str) -> Result<Mol2Data> {
 }
 
 pub fn write_mol2(system: &System) -> String {
+    write_mol2_full(system, true)
+}
+
+pub fn write_mol2_full(system: &System, include_crysin: bool) -> String {
     let mut out = String::new();
     out.push_str("@<TRIPOS>MOLECULE
 ");
@@ -153,29 +157,25 @@ USER_CHARGES
 ", i + 1, bond.atom_i + 1, bond.atom_j + 1, order_str));
     }
     
-    // CRYSIN
-    let cell = system.cell; // glam::DMat3 (actually System stores inverted transposed cell? No, System::new(cell) takes raw [3][3])
-    // Wait, let's verify how System stores cell.
-    // In model.rs: pub struct System { pub cell: DMat3, pub inv_cell: DMat3, ... }
-    // System::new(raw_cell) -> cell = DMat3::from_cols_array_2d(&raw_cell).transpose()
-    // So system.cell is a matrix where rows or cols are lattice vectors.
-    
-    // Convert back to parameters
-    let va = glam::DVec3::new(cell.col(0).x, cell.col(0).y, cell.col(0).z);
-    let vb = glam::DVec3::new(cell.col(1).x, cell.col(1).y, cell.col(1).z);
-    let vc = glam::DVec3::new(cell.col(2).x, cell.col(2).y, cell.col(2).z);
-    
-    let a = va.length();
-    let b = vb.length();
-    let c = vc.length();
-    let alpha = (vb.dot(vc) / (b * c)).acos().to_degrees();
-    let beta = (va.dot(vc) / (a * c)).acos().to_degrees();
-    let gamma = (va.dot(vb) / (a * b)).acos().to_degrees();
-    
-    out.push_str("@<TRIPOS>CRYSIN
+    if include_crysin {
+        // CRYSIN
+        let cell = system.cell;
+        let va = glam::DVec3::new(cell.col(0).x, cell.col(0).y, cell.col(0).z);
+        let vb = glam::DVec3::new(cell.col(1).x, cell.col(1).y, cell.col(1).z);
+        let vc = glam::DVec3::new(cell.col(2).x, cell.col(2).y, cell.col(2).z);
+        
+        let a = va.length();
+        let b = vb.length();
+        let c = vc.length();
+        let alpha = (vb.dot(vc) / (b * c)).acos().to_degrees();
+        let beta = (va.dot(vc) / (a * c)).acos().to_degrees();
+        let gamma = (va.dot(vb) / (a * b)).acos().to_degrees();
+        
+        out.push_str("@<TRIPOS>CRYSIN
 ");
-    out.push_str(&format!("{:>10.4} {:>10.4} {:>10.4} {:>10.4} {:>10.4} {:>10.4} 1 1
+        out.push_str(&format!("{:>10.4} {:>10.4} {:>10.4} {:>10.4} {:>10.4} {:>10.4} 1 1
 ", a, b, c, alpha, beta, gamma));
+    }
     
     out
 }

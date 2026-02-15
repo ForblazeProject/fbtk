@@ -65,3 +65,32 @@ pub fn parse_mol(content: &str) -> Result<MoleculeTemplate> {
     
     Ok(MoleculeTemplate { atoms, bonds })
 }
+
+pub fn write_mol(tmpl: &MoleculeTemplate, title: &str) -> String {
+    let mut out = String::new();
+    // Header
+    out.push_str(title);
+    out.push('\n');
+    out.push_str("  FBTK-v0.9.1\n\n");
+    
+    // Counts line
+    out.push_str(&format!("{:>3}{:>3}  0  0  0  0  0  0  0  0999 V2000\n",
+        tmpl.atoms.len(), tmpl.bonds.len()));
+    
+    // Atoms block
+    for atom in &tmpl.atoms {
+        out.push_str(&format!("{:>10.4}{:>10.4}{:>10.4} {:<3} 0  0  0  0  0  0  0  0  0  0  0  0\n",
+            atom.position[0], atom.position[1], atom.position[2], atom.element));
+    }
+    
+    // Bonds block
+    for bond in &tmpl.bonds {
+        let order = if (bond.order - 1.5).abs() < 0.1 { 4 } // Aromatic in MDL
+                    else { bond.order.round() as usize };
+        out.push_str(&format!("{:>3}{:>3}{:>3}  0  0  0  0\n",
+            bond.atom_i + 1, bond.atom_j + 1, order));
+    }
+    
+    out.push_str("M  END\n");
+    out
+}

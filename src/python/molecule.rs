@@ -70,18 +70,26 @@ impl PyMolecule {
             .unwrap_or("")
             .to_lowercase();
 
-        if ext != "mol2" {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Only .mol2 is supported for to_file currently"));
+        match ext.as_str() {
+            "mol2" => {
+                let mut sys = crate::core::builder::model::System::new([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
+                sys.atoms = self.inner.atoms.clone();
+                sys.bonds = self.inner.bonds.clone();
+                let content = crate::parsers::mol2::write_mol2_full(&sys, false);
+                std::fs::write(path, content).map_err(|e| {
+                    PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("Failed to write MOL2: {}", e))
+                })?;
+            }
+            "mol" => {
+                let content = crate::parsers::mol::write_mol(&self.inner, &self.name);
+                std::fs::write(path, content).map_err(|e| {
+                    PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("Failed to write MOL: {}", e))
+                })?;
+            }
+            _ => {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Supported formats for Molecule.to_file: .mol, .mol2"));
+            }
         }
-
-        let mut sys = crate::core::builder::model::System::new([[20.0, 0.0, 0.0], [0.0, 20.0, 0.0], [0.0, 0.0, 20.0]]);
-        sys.atoms = self.inner.atoms.clone();
-        sys.bonds = self.inner.bonds.clone();
-        
-        let content = crate::parsers::mol2::write_mol2(&sys);
-        std::fs::write(path, content).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("Failed to write file: {}", e))
-        })?;
         Ok(())
     }
 
