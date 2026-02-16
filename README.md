@@ -12,6 +12,7 @@ Designed as a "Transparent Accelerator" for Python (ASE/RDKit) workflows with a 
 - **🏗️ Intelligent Builder**: 
   - **Optimized Initial Packing**: Grid-based placement with uniform density.
   - **Polymer Synthesis**: Automatic chain generation with leaving atom support.
+  - **Tacticity Control**: Supports **Isotactic**, **Syndiotactic**, and **Atactic** arrangements via center-of-mass analysis and mirroring.
   - **Built-in 3D Generation**: 3D coordinate generation from SMILES handled by internal VSEPR + UFF engine.
   - **Fast Structural Relaxation**: O(N) Cell-list optimization with the FIRE algorithm.
 - **🔍 Advanced Analysis**: 
@@ -112,5 +113,5 @@ FBTK supports intuitive strings to select atoms for analysis:
 ---
 ### Author
 **Forblaze Project**  
-Website: [https://forblaze-works.com/](https://forblaze-works.com/)
+Website: [https://forblaze-works.com/en/](https://forblaze-works.com/en/)
 

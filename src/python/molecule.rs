@@ -63,6 +63,58 @@ impl PyMolecule {
         Ok(Self { inner: template, name })
     }
 
+    #[staticmethod]
+    #[pyo3(signature = (monomer, degree, head=None, tail=None, h_leaving=None, t_leaving=None, tacticity=None, name=None))]
+    pub fn from_polymer(
+        monomer: &PyMolecule,
+        degree: usize,
+        head: Option<usize>,
+        tail: Option<usize>,
+        h_leaving: Option<usize>,
+        t_leaving: Option<usize>,
+        tacticity: Option<String>,
+        name: Option<String>,
+    ) -> PyResult<Self> {
+        use crate::core::builder::config::{PolymerParams, Tacticity};
+        use crate::core::builder::model::Builder;
+        use crate::core::builder::smiles::resolve_polymer_indices;
+
+        let tact = match tacticity.as_deref() {
+            Some("syndiotactic") => Some(Tacticity::Syndiotactic),
+            Some("atactic") => Some(Tacticity::Atactic),
+            Some("isotactic") => Some(Tacticity::Isotactic),
+            _ => None,
+        };
+
+        let mut params = PolymerParams {
+            degree,
+            n_chains: 1,
+            head_index: head,
+            tail_index: tail,
+            head_leaving_index: h_leaving,
+            tail_leaving_index: t_leaving,
+            tacticity: tact,
+        };
+
+        // Resolve indices if missing
+        if params.head_index.is_none() || params.tail_index.is_none() {
+            let (h, t, hl, tl) = resolve_polymer_indices(&monomer.inner, head, tail).map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to resolve polymer indices: {}", e))
+            })?;
+            if params.head_index.is_none() { params.head_index = Some(h); }
+            if params.tail_index.is_none() { params.tail_index = Some(t); }
+            if params.head_leaving_index.is_none() { params.head_leaving_index = hl; }
+            if params.tail_leaving_index.is_none() { params.tail_leaving_index = tl; }
+        }
+
+        let chain = Builder::generate_chain(&monomer.inner, &params).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to generate polymer chain: {}", e))
+        })?;
+
+        let final_name = name.unwrap_or_else(|| format!("{}_{}", monomer.name, degree));
+        Ok(Self { inner: chain, name: final_name })
+    }
+
     pub fn to_file(&self, path: &str) -> PyResult<()> {
         let ext = std::path::Path::new(path)
             .extension()

@@ -66,7 +66,8 @@ pub fn run_build_cli(args: Vec<String>) -> Result<()> {
             if comp.role == crate::core::builder::config::ComponentRole::Polymer {
                 let p = comp.polymer_params.get_or_insert(crate::core::builder::config::PolymerParams {
                     degree: 10, n_chains: 1, head_index: None, tail_index: None,
-                    head_leaving_index: None, tail_leaving_index: None
+                    head_leaving_index: None, tail_leaving_index: None,
+                    tacticity: None
                 });
                 
                 if p.head_index.is_none() || p.tail_index.is_none() {

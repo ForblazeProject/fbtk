@@ -75,7 +75,7 @@ impl PyBuilder {
         });
     }
 
-    #[pyo3(signature = (name, count, degree, smiles=None, head=None, tail=None, h_leaving=None, t_leaving=None))]
+    #[pyo3(signature = (name, count, degree, smiles=None, head=None, tail=None, h_leaving=None, t_leaving=None, tacticity=None))]
     pub fn add_polymer(
         &mut self, 
         name: String, 
@@ -85,8 +85,16 @@ impl PyBuilder {
         head: Option<usize>,
         tail: Option<usize>,
         h_leaving: Option<usize>,
-        t_leaving: Option<usize>
+        t_leaving: Option<usize>,
+        tacticity: Option<String>,
     ) {
+        let tact = match tacticity.as_deref() {
+            Some("syndiotactic") => Some(crate::core::builder::config::Tacticity::Syndiotactic),
+            Some("atactic") => Some(crate::core::builder::config::Tacticity::Atactic),
+            Some("isotactic") => Some(crate::core::builder::config::Tacticity::Isotactic),
+            _ => None,
+        };
+
         let recipe = self.ensure_recipe();
         recipe.components.push(crate::core::builder::config::ComponentConfig {
             name,
@@ -100,6 +108,7 @@ impl PyBuilder {
                 tail_index: tail,
                 head_leaving_index: h_leaving,
                 tail_leaving_index: t_leaving,
+                tacticity: tact,
             }),
         });
     }

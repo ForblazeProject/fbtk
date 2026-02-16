@@ -161,7 +161,7 @@ checksum = "95765f67b4b18863968b4a1bd5bb576f732b29a4a28c7cd84c09fa3e2875f33c"
 
 [[package]]
 name = "fbtk"
-version = "0.9.3"
+version = "0.9.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -589,9 +589,9 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "uff-relax"
-version = "1.0.3"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3ca281a9e02e7daf97037528f75f1c134c9252346d98b50bb4e382a2950666d"
+checksum = "04aa7f882844db5f9869a8a6d7793008625d9697ac2254ee1c4ea64fbbe22a3f"
 dependencies = [
  "glam",
  "rayon",

@@ -40,6 +40,14 @@ pub struct InputSource {
     pub format: Option<String>,     // Optional format hint
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum Tacticity {
+    Isotactic,
+    Syndiotactic,
+    Atactic,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PolymerParams {
     pub degree: usize,            // Degree of polymerization
@@ -48,6 +56,7 @@ pub struct PolymerParams {
     pub tail_index: Option<usize>, // Atom index to connect (from template)
     pub head_leaving_index: Option<usize>, // Atom to remove at head connection
     pub tail_leaving_index: Option<usize>, // Atom to remove at tail connection
+    pub tacticity: Option<Tacticity>,      // tacticity control (default: isotactic)
 }
 
 impl Recipe {
