@@ -1,0 +1,32 @@
+# FBTK Sample Recipe Template
+# This file can be used as a base for building your own systems.
+
+system:
+  # Target density in g/cm^3
+  density: 0.5
+  # Optional: Explicit cell dimensions [Lx, Ly, Lz] in Angstroms
+  # If cell_shape is null, it will be calculated from density and mass.
+  cell_shape: [30.0, 30.0, 30.0]
+
+components:
+  # Example 1: A Polymer Component
+  - name: "Polystyrene"
+    role: "polymer"
+    input:
+      # Use '*' markers for RadonPy-style SMILES
+      smiles: "*C(C*)c1ccccc1"
+    polymer_params:
+      # Degree of polymerization (number of monomers)
+      degree: 10
+      # Number of polymer chains to place
+      n_chains: 2
+      # Tacticity: isotactic, syndiotactic, or atactic
+      tacticity: "atactic"
+
+  # Example 2: A Small Molecule Component (Solvent/Additive)
+  - name: "Ethanol"
+    role: "molecule"
+    input:
+      smiles: "CCO"
+    # Number of molecules to place
+    count: 20

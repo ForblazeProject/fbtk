@@ -101,6 +101,7 @@ jobs:
           cp $BIN_DIR/fbtk-analyze${{ matrix.binary_ext }} $PKG_NAME/
           cp $BIN_DIR/fbtk-build${{ matrix.binary_ext }} $PKG_NAME/
           cp LICENSE-* $PKG_NAME/ || true
+          cp sample_recipe.yaml $PKG_NAME/
           
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             7z a ${PKG_NAME}.zip $PKG_NAME

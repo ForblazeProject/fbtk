@@ -43,16 +43,37 @@ pub fn run_build_cli(args: Vec<String>) -> Result<()> {
     println!("--- fbtk-build ---");
     println!("Threads: {}", num_threads);
     println!("Reading recipe from {:?}", args.recipe);
-    let recipe = Recipe::from_yaml(&args.recipe)?;
+    let mut recipe = Recipe::from_yaml(&args.recipe)?;
     
+    // 2. Configuration Summary & Strict Validation
+    println!("\nSystem Summary:");
+    println!("  Target Density: {} g/cm^3", recipe.system.density);
+    if let Some(shape) = recipe.system.cell_shape {
+        println!("  Cell Shape: [{:.2}, {:.2}, {:.2}] A", shape[0], shape[1], shape[2]);
+    }
+    println!("Components:");
+    for comp in &recipe.components {
+        match comp.role {
+            crate::core::builder::config::ComponentRole::Polymer => {
+                let p = comp.polymer_params.as_ref().ok_or_else(|| {
+                    anyhow!("Component '{}' is marked as 'polymer' but missing required 'polymer_params' key in YAML.", comp.name)
+                })?;
+                println!("  - [{}] {}: degree={}, n_chains={}, tacticity={:?}", 
+                    "Polymer", comp.name, p.degree, p.n_chains, p.tacticity.as_ref().unwrap_or(&crate::core::builder::config::Tacticity::Isotactic));
+            },
+            _ => {
+                println!("  - [{:?}] {}: count={}", 
+                    comp.role, comp.name, comp.count.unwrap_or(1));
+            }
+        }
+    }
+    println!("");
+
     let mut builder = Builder::new();
     
-    // 2. Load Templates
+    // 3. Load Templates
     let recipe_dir = args.recipe.parent().unwrap_or(std::path::Path::new("."));
     
-    // We need to store resolved recipes if we modify them (e.g., for polymer indices)
-    let mut recipe = recipe; 
-
     for comp in &mut recipe.components {
         if let Some(file_path) = &comp.input.file {
             let full_path = recipe_dir.join(file_path);
@@ -62,13 +83,9 @@ pub fn run_build_cli(args: Vec<String>) -> Result<()> {
             println!("Generating template from SMILES for {}: {}", comp.name, smiles);
             let tmpl = crate::core::builder::smiles::parse_smiles(smiles)?;
             
-            // If it's a polymer and indices are missing, resolve them
+            // Resolve indices for polymers if needed
             if comp.role == crate::core::builder::config::ComponentRole::Polymer {
-                let p = comp.polymer_params.get_or_insert(crate::core::builder::config::PolymerParams {
-                    degree: 10, n_chains: 1, head_index: None, tail_index: None,
-                    head_leaving_index: None, tail_leaving_index: None,
-                    tacticity: None
-                });
+                let p = comp.polymer_params.as_mut().unwrap(); // Already validated above
                 
                 if p.head_index.is_none() || p.tail_index.is_none() {
                     let (h, t, hl, tl) = crate::core::builder::smiles::resolve_polymer_indices(&tmpl, p.head_index, p.tail_index)?;
@@ -76,8 +93,8 @@ pub fn run_build_cli(args: Vec<String>) -> Result<()> {
                     if p.tail_index.is_none() { p.tail_index = Some(t); }
                     if p.head_leaving_index.is_none() { p.head_leaving_index = hl; }
                     if p.tail_leaving_index.is_none() { p.tail_leaving_index = tl; }
-                    println!("  Resolved polymer indices: head={}, tail={}, h_leaving={:?}, t_leaving={:?}", 
-                        h, t, hl, tl);
+                    println!("  Resolved polymer indices for {}: head={}, tail={}, h_leaving={:?}, t_leaving={:?}", 
+                        comp.name, h, t, hl, tl);
                 }
             }
             
@@ -87,7 +104,7 @@ pub fn run_build_cli(args: Vec<String>) -> Result<()> {
 
     builder.set_recipe(recipe);
     
-    println!("Building system...");
+    println!("\nBuilding system...");
     builder.build()?;
     
     let system = builder.system.as_ref().ok_or_else(|| anyhow!("Failed to build system"))?;
