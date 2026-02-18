@@ -143,6 +143,7 @@ pub fn from_ase(py: Python, atoms: PyObject) -> PyResult<PySystem> {
             atom_type: info[i].element.clone(), // Fix XX issue here too
             position: [p[0], p[1], p[2]].into(),
             charge: 0.0,
+            formal_charge: 0.0,
             chain_index: 0,
         });
     }

@@ -15,9 +15,10 @@ impl PyMolecule {
     #[pyo3(signature = (smiles, name=None))]
     pub fn from_smiles(smiles: &str, name: Option<String>) -> PyResult<Self> {
         let name = name.unwrap_or_else(|| "MOL".to_string());
-        let template = parse_smiles(smiles).map_err(|e| {
+        let mut template = parse_smiles(smiles).map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to parse SMILES: {}", e))
         })?;
+        template.assign_partial_charges();
         Ok(Self { inner: template, name })
     }
 
@@ -107,9 +108,12 @@ impl PyMolecule {
             if params.tail_leaving_index.is_none() { params.tail_leaving_index = tl; }
         }
 
-        let chain = Builder::generate_chain(&monomer.inner, &params).map_err(|e| {
+        let mut chain = Builder::generate_chain(&monomer.inner, &params).map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to generate polymer chain: {}", e))
         })?;
+        
+        // Automatically assign charges after polymerization
+        chain.assign_partial_charges();
 
         let final_name = name.unwrap_or_else(|| format!("{}_{}", monomer.name, degree));
         Ok(Self { inner: chain, name: final_name })
@@ -201,6 +205,10 @@ impl PyMolecule {
             pos.push(atom.position[2]);
         }
         PyArray1::from_vec(py, pos).reshape([n, 3]).unwrap()
+    }
+
+    pub fn assign_partial_charges(&mut self) {
+        self.inner.assign_partial_charges();
     }
 }
 

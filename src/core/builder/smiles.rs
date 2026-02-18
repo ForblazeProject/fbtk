@@ -81,7 +81,8 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
             element: element.clone(),
             atom_type: element.clone(),
             position: [i as f64 * 1.5, noise_y, noise_z].into(),
-            charge,
+            charge: 0.0,
+            formal_charge: charge as f32,
             chain_index: 0,
         });
     }
@@ -175,6 +176,7 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
                         p.z + offset[2] * 1.1 + h_noise_z
                     ].into(),
                     charge: 0.0,
+                    formal_charge: 0.0,
                     chain_index: 0,
                 });
                 

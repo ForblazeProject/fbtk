@@ -40,6 +40,7 @@ pub fn parse_mol(content: &str) -> Result<MoleculeTemplate> {
             atom_type: "XX".to_string(), // Default
             position: [x, y, z].into(),
             charge: 0.0,
+            formal_charge: 0.0,
             chain_index: 0,
         });
     }

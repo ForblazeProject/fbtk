@@ -217,4 +217,20 @@ impl System {
 
         Ok(())
     }
+
+    pub fn assign_partial_charges(&mut self) {
+        use gasteiger_rs::GasteigerSolver;
+        let solver = GasteigerSolver::default();
+        let target_total: f64 = self.atoms.iter().map(|a| a.formal_charge as f64).sum();
+        let charges = solver.compute_charges(&self.atoms, &self.bonds);
+        
+        let current_total: f64 = charges.iter().sum::<f64>();
+        let diff = target_total - current_total;
+        let n_atoms = self.atoms.len();
+        let correction = if n_atoms > 0 { diff / n_atoms as f64 } else { 0.0 };
+
+        for (i, q) in charges.iter().enumerate() {
+            self.atoms[i].charge = (*q as f64) + correction;
+        }
+    }
 }

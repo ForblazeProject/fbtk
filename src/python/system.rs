@@ -261,4 +261,12 @@ impl PySystem {
         })?;
         Ok(())
     }
+
+    pub fn assign_partial_charges(&mut self) {
+        let mut sys = crate::core::builder::system::System::new(self.cell);
+        sys.atoms = self.atoms.clone();
+        sys.bonds = self.bonds.clone();
+        sys.assign_partial_charges();
+        self.atoms = sys.atoms;
+    }
 }

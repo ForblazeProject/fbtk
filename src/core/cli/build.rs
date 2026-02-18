@@ -81,7 +81,8 @@ pub fn run_build_cli(args: Vec<String>) -> Result<()> {
             builder.load_template_file(&comp.name, full_path.to_str().unwrap_or(""))?;
         } else if let Some(smiles) = &comp.input.smiles {
             println!("Generating template from SMILES for {}: {}", comp.name, smiles);
-            let tmpl = crate::core::builder::smiles::parse_smiles(smiles)?;
+            let mut tmpl = crate::core::builder::smiles::parse_smiles(smiles)?;
+            tmpl.assign_partial_charges();
             
             // Resolve indices for polymers if needed
             if comp.role == crate::core::builder::config::ComponentRole::Polymer {

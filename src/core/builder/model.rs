@@ -107,59 +107,26 @@ impl Builder {
             };
 
             for i in 0..n_mon {
-                // If it's a connection point marker (R)
-                if monomer.atoms[i].element == "R" {
-                    let is_head = Some(i) == params.head_index || Some(i) == params.head_leaving_index;
-                    let is_tail = Some(i) == params.tail_index || Some(i) == params.tail_leaving_index;
-                    
-                    if is_head && m == 0 {
-                        // At the very start of the chain: Turn R into H
-                        let mut atom = monomer.atoms[i].clone();
-                        atom.id = atom_cnt; atom.residue_index = m+1;
-                        atom.element = "H".to_string(); atom.atom_type = "H".to_string();
-                        
-                        // Transform Position
-                        if let Some(frame) = local_frame {
-                            let mut local_p = frame.transpose() * (atom.position - p_head);
-                            if flip { local_p.x *= -1.0; }
-                            atom.position = (frame * local_p) + origin + p_head;
-                        } else {
-                            atom.position += origin;
-                        }
+                let is_head_leaving = Some(i) == params.head_leaving_index;
+                let is_tail_leaving = Some(i) == params.tail_leaving_index;
 
-                        chain_atoms.push(atom); l2g[i] = Some(atom_cnt); atom_cnt += 1;
-                        continue;
-                    } else if is_tail && m == params.degree - 1 {
-                        // At the very end of the chain: Turn R into H
-                        let mut atom = monomer.atoms[i].clone();
-                        atom.id = atom_cnt; atom.residue_index = m+1;
-                        atom.element = "H".to_string(); atom.atom_type = "H".to_string();
-                        
-                        // Transform Position
-                        if let Some(frame) = local_frame {
-                            let mut local_p = frame.transpose() * (atom.position - p_head);
-                            if flip { local_p.x *= -1.0; }
-                            atom.position = (frame * local_p) + origin + p_head;
-                        } else {
-                            atom.position += origin;
-                        }
+                // 1. Remove if it's a junction point
+                if is_head_leaving && m > 0 { continue; }
+                if is_tail_leaving && m < params.degree - 1 { continue; }
 
-                        chain_atoms.push(atom); l2g[i] = Some(atom_cnt); atom_cnt += 1;
-                        continue;
+                // 2. Handle R markers at ends (convert to H)
+                let mut atom = monomer.atoms[i].clone();
+                if atom.element == "R" {
+                    if (is_head_leaving && m == 0) || (is_tail_leaving && m == params.degree - 1) {
+                        atom.element = "H".to_string();
+                        atom.atom_type = "H".to_string();
                     } else {
-                        // It's a junction: Remove the marker
                         continue;
                     }
                 }
 
-                // Normal removal of leaving atoms (if they were actual atoms, not R)
-                if (Some(i) == params.head_leaving_index && m > 0) || 
-                   (Some(i) == params.tail_leaving_index && m < params.degree-1) { 
-                    continue; 
-                }
-                
-                let mut atom = monomer.atoms[i].clone();
-                atom.id = atom_cnt; atom.residue_index = m+1;
+                atom.id = atom_cnt; 
+                atom.residue_index = m + 1;
                 
                 // Transform Position
                 if let Some(frame) = local_frame {
@@ -170,7 +137,9 @@ impl Builder {
                     atom.position += origin;
                 }
 
-                chain_atoms.push(atom); l2g[i] = Some(atom_cnt); atom_cnt += 1;
+                chain_atoms.push(atom); 
+                l2g[i] = Some(atom_cnt); 
+                atom_cnt += 1;
             }
             for b in &monomer.bonds {
                 if let (Some(gi), Some(gj)) = (l2g[b.atom_i], l2g[b.atom_j]) {
@@ -245,11 +214,16 @@ impl Builder {
             base.update_from_uff_atoms(&base_uff.atoms);
 
             // Step 2: Generate instances
-            let (tmpl, n) = if comp.role == ComponentRole::Polymer {
+            let (mut tmpl, n) = if comp.role == ComponentRole::Polymer {
                 let p = comp.polymer_params.as_ref().ok_or_else(|| anyhow::anyhow!("No params"))?;
                 // generate_chain now handles its own relaxation
-                (Self::generate_chain(&base, p)?, p.n_chains)
-            } else { (base.clone(), comp.count.unwrap_or(1)) };
+                let mut chain = Self::generate_chain(&base, p)?;
+                chain.assign_partial_charges();
+                (chain, p.n_chains)
+            } else { 
+                base.assign_partial_charges();
+                (base.clone(), comp.count.unwrap_or(1)) 
+            };
             
             for _ in 0..n { instances.push((tmpl.clone(), comp.name.clone(), idx)); }
         }
@@ -277,6 +251,8 @@ impl Builder {
                 let mut new_a = atom.clone();
                 new_a.id = atom_id; new_a.residue_name = res.clone(); new_a.chain_index = c_idx;
                 new_a.position = (quat * new_a.position) + origin;
+                new_a.charge = atom.charge;
+                new_a.formal_charge = atom.formal_charge;
                 system.wrap_position(&mut new_a.position);
                 system.add_atom(new_a); atom_id += 1;
             }

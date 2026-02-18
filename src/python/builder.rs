@@ -137,6 +137,7 @@ impl PyBuilder {
                 atom_type: "XX".to_string(),
                 position: [pos[[i, 0]], pos[[i, 1]], pos[[i, 2]]].into(),
                 charge: 0.0,
+                formal_charge: 0.0,
                 chain_index: 0,
             });
         }
@@ -160,8 +161,9 @@ impl PyBuilder {
 
         // Step 2: Generate and add missing templates
         for (name, smiles) in missing_smiles {
-            let tmpl = crate::core::builder::smiles::parse_smiles(&smiles)
+            let mut tmpl = crate::core::builder::smiles::parse_smiles(&smiles)
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to parse SMILES for {}: {}", name, e)))?;
+            tmpl.assign_partial_charges();
             self.inner.add_template(name, tmpl);
         }
 

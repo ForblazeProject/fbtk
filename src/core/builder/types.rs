@@ -1,5 +1,6 @@
 use glam::DVec3;
 use vsepr_rs::traits::{AtomTrait, BondTrait};
+use gasteiger_rs::{GasteigerAtom, GasteigerBond, GasteigerSolver};
 
 #[derive(Debug, Clone)]
 pub struct Atom {
@@ -10,6 +11,7 @@ pub struct Atom {
     pub atom_type: String,
     pub position: DVec3,
     pub charge: f64,
+    pub formal_charge: f32,
     pub chain_index: usize,
 }
 
@@ -18,6 +20,15 @@ impl AtomTrait for Atom {
     fn set_position(&mut self, pos: [f64; 3]) { self.position = DVec3::from_array(pos); }
     fn atomic_number(&self) -> usize {
         crate::core::elements::get_atomic_number(&self.element)
+    }
+}
+
+impl GasteigerAtom for Atom {
+    fn atomic_number(&self) -> usize {
+        crate::core::elements::get_atomic_number(&self.element)
+    }
+    fn formal_charge(&self) -> f32 {
+        self.formal_charge
     }
 }
 
@@ -33,6 +44,15 @@ impl BondTrait for Bond {
         (self.atom_i, self.atom_j)
     }
     fn get_bond_order(&self) -> f32 {
+        self.order as f32
+    }
+}
+
+impl GasteigerBond for Bond {
+    fn atom_indices(&self) -> (usize, usize) {
+        (self.atom_i, self.atom_j)
+    }
+    fn bond_order(&self) -> f32 {
         self.order as f32
     }
 }
@@ -53,6 +73,20 @@ impl MoleculeTemplate {
     pub fn update_from_uff_atoms(&mut self, uff_atoms: &[uff_relax::Atom]) {
         for (i, atom) in uff_atoms.iter().enumerate() {
             self.atoms[i].position = atom.position;
+        }
+    }
+
+    pub fn assign_partial_charges(&mut self) {
+        let solver = GasteigerSolver::default();
+        let target_total: f64 = self.atoms.iter().map(|a| a.formal_charge as f64).sum();
+        let charges = solver.compute_charges(&self.atoms, &self.bonds);
+        
+        let current_total: f64 = charges.iter().sum::<f64>();
+        let diff = target_total - current_total;
+        let correction = if self.atoms.is_empty() { 0.0 } else { diff / self.atoms.len() as f64 };
+
+        for (i, q) in charges.iter().enumerate() {
+            self.atoms[i].charge = (*q as f64) + correction;
         }
     }
 }

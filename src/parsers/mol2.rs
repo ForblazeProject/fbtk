@@ -64,6 +64,7 @@ fn parse_mol2_internal(content: &str) -> Result<Mol2Data> {
                         atom_type,
                         position: [x, y, z].into(),
                         charge: if parts.len() >= 9 { parts[8].parse().unwrap_or(0.0) } else { 0.0 },
+                        formal_charge: 0.0,
                         chain_index: 0,
                     });
                 }
@@ -137,7 +138,7 @@ USER_CHARGES
     for atom in &system.atoms {
         let mut type_name = atom.atom_type.clone();
         if type_name == "XX" { type_name = atom.element.clone(); }
-        out.push_str(&format!("{:>7} {:<8} {:>10.4} {:>10.4} {:>10.4} {:<8} {:>5} {:<8} {:>10.4}
+        out.push_str(&format!("{:>7} {:<8} {:>10.6} {:>10.6} {:>10.6} {:<8} {:>5} {:<8} {:>10.6}
 ",
             atom.id + 1, atom.element, atom.position[0], atom.position[1], atom.position[2],
             type_name, 1, "RES", atom.charge

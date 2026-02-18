@@ -98,6 +98,7 @@ pub fn extract_rdkit_template(py: Python, mol: PyObject, name: String) -> PyResu
             atom_type: "XX".to_string(),
             position: [pos[[i, 0]], pos[[i, 1]], pos[[i, 2]]].into(),
             charge: 0.0,
+            formal_charge: 0.0,
             chain_index: 0,
         });
     }
