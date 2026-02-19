@@ -26,14 +26,27 @@ Designed as a "Transparent Accelerator" for Python (ASE/RDKit) workflows with a 
 ```bash
 pip install fbtk
 ```
-**Requirements**: Python 3.8+ and NumPy.
+**Requirements**: Python 3.8+ (Zero external dependencies).
 
 ### Standalone CLI (No Python Required)
 For non-Python environments, pre-compiled standalone binaries for Linux, Windows, and macOS are available on the [GitHub Releases](https://github.com/ForblazeProject/fbtk/releases) page.
-- Download the archive for your platform (e.g., `fbtk-cli-v0.9.1-linux-x86_64.tar.gz`).
+- Download the archive for your platform (e.g., `fbtk-cli-v0.9.6-linux-x86_64.tar.gz`).
 - **Requirements**: None. These are self-contained binaries.
 
-## Usage
+## Key Features
+
+- **🚀 High Performance**: Core logic written in Rust with parallel processing (Rayon).
+- **🏗️ Intelligent Builder**: 
+  - **Optimized Initial Packing**: Grid-based placement with uniform density.
+  - **Polymer Synthesis**: Automatic chain generation with terminal capping (hydrogen addition).
+  - **Tacticity Control**: Supports **Isotactic**, **Syndiotactic**, and **Atactic** arrangements.
+  - **Charge Assignment**: Automatic partial charge calculation via Gasteiger method.
+  - **Built-in 3D Generation**: 3D coordinate generation from SMILES handled by internal VSEPR + UFF engine.
+  - **Fast Structural Relaxation**: O(N) Cell-list optimization with the FIRE algorithm.
+- **🔍 Advanced Analysis**: 
+  - Parallel RDF, MSD, COM (Center of Mass), Angles, Dihedrals.
+- **📏 Robust Physics**: Correct handling of PBC, Triclinic cells, and Minimum Image Convention (MIC).
+- **📦 Zero Dependency**: No RDKit, no NumPy, no SciPy required for the core engine. Perfect for clean deployment.
 
 ### 1. System Building
 
