@@ -171,7 +171,10 @@ mol.AddConformer(conf, assignId=True)
 
 # THE CRITICAL SEQUENCE for Ion support
 mol.UpdatePropertyCache(strict=False)
-Chem.SanitizeMol(mol)
+# Perform sanitization but skip property validation (which includes strict valence checks)
+# that often fails for custom ions even with correct charges.
+flags = Chem.SanitizeFlags.SANITIZE_ALL ^ Chem.SanitizeFlags.SANITIZE_PROPERTIES
+Chem.SanitizeMol(mol, sanitizeOps=flags)
 
 result_mol = mol
 "#), None, Some(&locals))?;
