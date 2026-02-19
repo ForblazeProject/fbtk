@@ -23,9 +23,11 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
     let mut rng = rand::thread_rng();
     
     // 1. Create Heavy Atoms
+    let mut explicit_h_counts = Vec::new();
     for (i, node) in nodes.iter().enumerate() {
         let mut aromatic = false;
         let mut charge = 0.0;
+        let mut h_count = 0;
         let element = match &node.kind {
             AtomKind::Star => "R".to_string(), // Treat * as Dummy "R"
             AtomKind::Aliphatic(e) => e.to_string(),
@@ -38,7 +40,18 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
                 }
                 s
             },
-            AtomKind::Bracket { symbol, charge: c, .. } => {
+            AtomKind::Bracket { symbol, charge: c, hcount: h, .. } => {
+                h_count = if let Some(val) = h {
+                    let s = format!("{:?}", val);
+                    match s.as_str() {
+                        "H0" | "Zero" => 0,
+                        "H1" | "One" => 1,
+                        "H2" | "Two" => 2,
+                        "H3" | "Three" => 3,
+                        "H4" | "Four" => 4,
+                        _ => 0,
+                    }
+                } else { 0 };
                 charge = if let Some(val) = c {
                     let s = format!("{:?}", val);
                     match s.as_str() {
@@ -69,6 +82,7 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
             },
         };
         is_aromatic.push(aromatic);
+        explicit_h_counts.push(h_count);
 
         // Simple linear layout with noise to help relaxation
         let noise_y: f64 = rng.gen_range(-0.3..0.3);
@@ -118,33 +132,32 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
         let element = &atoms[i].element;
         if element == "R" { continue; } // Do not add H to dummy atoms
         
-        // Skip hydrogen addition for atoms with formal charges
-        if atoms[i].formal_charge.abs() > 0.01 {
-            continue;
-        }
-        
-        let mut current_valence = 0.0;
-        
-        // Calculate current valence from bonds
-        for b in &bonds {
-            if b.atom_i == i || b.atom_j == i {
-                current_valence += b.order;
+        let h_needed = if explicit_h_counts[i] > 0 {
+            // Priority 1: Explicitly specified in SMILES (e.g. [NH4+])
+            explicit_h_counts[i] as i32
+        } else {
+            // Priority 2: Inferred for neutral atoms (skip for anions)
+            if atoms[i].formal_charge < -0.01 {
+                0
+            } else {
+                let mut current_valence = 0.0;
+                for b in &bonds {
+                    if b.atom_i == i || b.atom_j == i {
+                        current_valence += b.order;
+                    }
+                }
+
+                let target_valence = match element.to_uppercase().as_str() {
+                    "C" => 4.0,
+                    "N" | "P" => if atoms[i].formal_charge > 0.5 { 4.0 } else { 3.0 },
+                    "O" | "S" => 2.0,
+                    "F" | "CL" | "BR" | "I" => 1.0,
+                    "H" => 1.0,
+                    _ => 0.0,
+                };
+                (target_valence - current_valence).round() as i32
             }
-        }
-
-        // Determine target valence (simplified)
-        let target_valence = match element.to_uppercase().as_str() {
-            "C" => 4.0,
-            "N" => 3.0,
-            "O" => 2.0,
-            "F" | "CL" | "BR" | "I" => 1.0,
-            "S" => 2.0, // simplified
-            "P" => 3.0, // simplified
-            "H" => 1.0,
-            _ => 0.0,
         };
-
-        let h_needed = (target_valence - current_valence).round() as i32;
         
         if h_needed > 0 {
             for k in 0..h_needed {

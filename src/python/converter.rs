@@ -138,6 +138,7 @@ for element, charge, res_name, res_id in atoms_data:
     a.SetFormalCharge(int(charge))
     a.SetNoImplicit(True)
     a.SetNumExplicitHs(0)
+    a.SetNumRadicalElectrons(0)
     
     idx = mol.AddAtom(a)
     
