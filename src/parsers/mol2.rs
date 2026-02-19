@@ -138,10 +138,13 @@ USER_CHARGES
     for atom in &system.atoms {
         let mut type_name = atom.atom_type.clone();
         if type_name == "XX" { type_name = atom.element.clone(); }
+        let res_name = if atom.residue_name.is_empty() { "RES".to_string() } else { atom.residue_name.to_uppercase() };
+        let res_id = if atom.residue_index == 0 { 1 } else { atom.residue_index };
+
         out.push_str(&format!("{:>7} {:<8} {:>10.6} {:>10.6} {:>10.6} {:<8} {:>5} {:<8} {:>10.6}
 ",
             atom.id + 1, atom.element, atom.position[0], atom.position[1], atom.position[2],
-            type_name, 1, "RES", atom.charge
+            type_name, res_id, res_name, atom.charge
         ));
     }
     

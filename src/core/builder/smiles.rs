@@ -118,8 +118,8 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
         let element = &atoms[i].element;
         if element == "R" { continue; } // Do not add H to dummy atoms
         
-        // Skip hydrogen addition for ions (non-zero charge)
-        if atoms[i].charge.abs() > 0.1 {
+        // Skip hydrogen addition for atoms with formal charges
+        if atoms[i].formal_charge.abs() > 0.01 {
             continue;
         }
         

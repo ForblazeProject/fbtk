@@ -214,7 +214,7 @@ impl Builder {
             base.update_from_uff_atoms(&base_uff.atoms);
 
             // Step 2: Generate instances
-            let (mut tmpl, n) = if comp.role == ComponentRole::Polymer {
+            let (tmpl, n) = if comp.role == ComponentRole::Polymer {
                 let p = comp.polymer_params.as_ref().ok_or_else(|| anyhow::anyhow!("No params"))?;
                 // generate_chain now handles its own relaxation
                 let mut chain = Self::generate_chain(&base, p)?;
@@ -247,9 +247,14 @@ impl Builder {
             let q = crate::core::linalg::random_quaternion();
             let quat = glam::DQuat::from_xyzw(q[1], q[2], q[3], q[0]);
             let start = atom_id;
+            let res_idx = idx + 1;
+
             for atom in &tmpl.atoms {
                 let mut new_a = atom.clone();
-                new_a.id = atom_id; new_a.residue_name = res.clone(); new_a.chain_index = c_idx;
+                new_a.id = atom_id; 
+                new_a.residue_name = res.clone(); 
+                new_a.residue_index = res_idx;
+                new_a.chain_index = c_idx;
                 new_a.position = (quat * new_a.position) + origin;
                 new_a.charge = atom.charge;
                 new_a.formal_charge = atom.formal_charge;
