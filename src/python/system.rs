@@ -201,142 +201,20 @@ impl PySystem {
     }
 
     pub fn to_rdkit(&self, py: Python) -> PyResult<PyObject> {
-        let _ = py.import("rdkit.Chem").map_err(|_| {
-            PyErr::new::<pyo3::exceptions::PyImportError, _>("The 'rdkit' library is required for to_rdkit(). Please install it via 'pip install rdkit'.")
-        })?;
-
-        // 1. Prepare raw data for Python construction
-        let atoms_data: Vec<(String, f32, String, usize)> = self.atoms.iter().map(|a| {
-            let res_name = if a.residue_name.is_empty() { "RES".to_string() } else { a.residue_name.to_uppercase() };
-            (a.element.clone(), a.formal_charge, res_name, a.residue_index)
-        }).collect();
-
-        let bonds_data: Vec<(usize, usize, f64)> = self.bonds.iter().map(|b| (b.atom_i, b.atom_j, b.order)).collect();
-        
         let mut sys = crate::core::builder::system::System::new(self.cell);
         sys.atoms = self.atoms.clone();
         sys.bonds = self.bonds.clone();
         sys.unwrap();
         let pos: Vec<[f64; 3]> = sys.atoms.iter().map(|a| a.position.to_array()).collect();
-
-        let locals = pyo3::types::PyDict::new(py);
-        locals.set_item("atoms_data", atoms_data)?;
-        locals.set_item("bonds_data", bonds_data)?;
-        locals.set_item("pos", pos)?;
-
-        // 2. Build RDKit Mol in Python context with strict control over sequence
-        py.run(pyo3::ffi::c_str!(r#"
-from rdkit import Chem
-from rdkit.Geometry import Point3D
-
-mol = Chem.RWMol()
-# IMPORTANT: Construct without any automatic sanitization or valence checks
-for element, charge, res_name, res_id in atoms_data:
-    a = Chem.Atom(element)
-    a.SetFormalCharge(int(charge))
-    # Disable implicit hydrogens to prevent RDKit from adding them before we set bonds
-    a.SetNoImplicit(True)
-    a.SetNumExplicitHs(0)
-    
-    idx = mol.AddAtom(a)
-    
-    # Set residue info
-    res_info = Chem.AtomPDBResidueInfo(element)
-    res_info.SetResidueName(res_name)
-    res_info.SetResidueNumber(int(res_id) if res_id > 0 else 1)
-    mol.GetAtomWithIdx(idx).SetMonomerInfo(res_info)
-
-for i, j, order in bonds_data:
-    if abs(order - 1.5) < 0.1:
-        btype = Chem.BondType.AROMATIC
-    elif abs(order - 2.0) < 0.1:
-        btype = Chem.BondType.DOUBLE
-    elif abs(order - 3.0) < 0.1:
-        btype = Chem.BondType.TRIPLE
-    else:
-        btype = Chem.BondType.SINGLE
-    mol.AddBond(i, j, btype)
-
-# FINAL GUARD: Ensure RDKit doesn't add implicit hydrogens after bond creation
-for atom in mol.GetAtoms():
-    atom.SetNoImplicit(True)
-    atom.SetNumExplicitHs(0)
-
-# Setup geometry
-conf = Chem.Conformer(len(atoms_data))
-for i, p in enumerate(pos):
-    conf.SetAtomPosition(i, Point3D(p[0], p[1], p[2]))
-mol.AddConformer(conf, assignId=True)
-
-# THE CRITICAL SEQUENCE:
-# 1. Update property cache with strict=False to acknowledge formal charges and bonds
-mol.UpdatePropertyCache(strict=False)
-# 2. Sanitize only after properties are cached correctly. [O-] is now valid.
-Chem.SanitizeMol(mol)
-
-result_mol = mol
-"#), None, Some(&locals))?;
-
-        let result_mol: PyObject = locals.get_item("result_mol")?.unwrap().into();
-        Ok(result_mol)
+        
+        crate::python::converter::to_rdkit_impl(py, &sys.atoms, &sys.bonds, &pos)
     }
 
     pub fn to_openff_topology(&self, py: Python) -> PyResult<PyObject> {
-        let rd_mol = self.to_rdkit(py)?;
+        let pos: Vec<[f64; 3]> = self.atoms.iter().map(|a| a.position.to_array()).collect();
+        let cell_nm = self.cell.iter().flatten().map(|v| v * 0.1).collect();
         
-        // 1. Prepare coordinates in Nanometers (0.1x) directly in Rust
-        let pos_nm: Vec<f64> = self.atoms.iter().flat_map(|a| [a.position.x * 0.1, a.position.y * 0.1, a.position.z * 0.1]).collect();
-        let cell_nm: Vec<f64> = self.cell.iter().flatten().map(|v| v * 0.1).collect();
-
-        let _ = py.import("openff.toolkit").map_err(|_| {
-            PyErr::new::<pyo3::exceptions::PyImportError, _>("The 'openff-toolkit' library is required for to_openff_topology(). Please install it via 'conda install openff-toolkit'.")
-        })?;
-        let _ = py.import("openff.units").map_err(|_| {
-            PyErr::new::<pyo3::exceptions::PyImportError, _>("The 'openff-units' library is required for to_openff_topology().")
-        })?;
-        
-        let locals = pyo3::types::PyDict::new(py);
-        locals.set_item("rd_mol", rd_mol)?;
-        locals.set_item("pos_nm", pos_nm)?;
-        locals.set_item("cell_nm", cell_nm)?;
-
-        // 2. Execute conversion in pure Python environment with explicit NM units
-        py.run(pyo3::ffi::c_str!(r#"
-import openff.toolkit
-import openff.units
-from rdkit import Chem
-import numpy as np
-
-# 1. Fragment the system
-frags = Chem.GetMolFrags(rd_mol, asMols=True)
-
-# 2. Convert each fragment to an OpenFF Molecule
-off_mols = []
-atom_ptr = 0
-all_pos = np.array(pos_nm).reshape((-1, 3))
-
-for f in frags:
-    m = openff.toolkit.Molecule.from_rdkit(f, allow_undefined_stereo=True)
-    n = m.n_atoms
-    # Assign the pre-converted nanometer coordinates
-    m_pos = all_pos[atom_ptr : atom_ptr + n]
-    m._conformers = [openff.units.unit.Quantity(m_pos, openff.units.unit.nanometer)]
-    off_mols.append(m)
-    atom_ptr += n
-
-# 3. Create Topology
-topology = openff.toolkit.Topology.from_molecules(off_mols)
-
-# 4. Set box vectors via property assignment (already in NM)
-box_matrix = np.array(cell_nm).reshape((3, 3))
-topology.box_vectors = openff.units.unit.Quantity(box_matrix, openff.units.unit.nanometer)
-"#), None, Some(&locals))?;
-
-        let topology: PyObject = locals.get_item("topology")?.ok_or_else(|| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to generate OpenFF Topology")
-        })?.into();
-
-        Ok(topology)
+        crate::python::converter::to_openff_impl(py, &self.atoms, &self.bonds, &pos, Some(cell_nm))
     }
 
     pub fn to_file(&self, path: &str) -> PyResult<()> {

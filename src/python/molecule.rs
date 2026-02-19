@@ -216,105 +216,13 @@ impl PyMolecule {
     }
 
     pub fn to_rdkit(&self, py: Python) -> PyResult<PyObject> {
-        let _ = py.import("rdkit.Chem").map_err(|_| {
-            PyErr::new::<pyo3::exceptions::PyImportError, _>("The 'rdkit' library is required for to_rdkit(). Please install it via 'pip install rdkit'.")
-        })?;
-
-        let atoms_data: Vec<(String, f32, String, usize)> = self.inner.atoms.iter().map(|a| {
-            let res_name = if a.residue_name.is_empty() { "RES".to_string() } else { a.residue_name.to_uppercase() };
-            (a.element.clone(), a.formal_charge, res_name, a.residue_index)
-        }).collect();
-
-        let bonds_data: Vec<(usize, usize, f64)> = self.inner.bonds.iter().map(|b| (b.atom_i, b.atom_j, b.order)).collect();
         let pos: Vec<[f64; 3]> = self.inner.atoms.iter().map(|a| a.position.to_array()).collect();
-
-        let locals = pyo3::types::PyDict::new(py);
-        locals.set_item("atoms_data", atoms_data)?;
-        locals.set_item("bonds_data", bonds_data)?;
-        locals.set_item("pos", pos)?;
-
-        py.run(pyo3::ffi::c_str!(r#"
-from rdkit import Chem
-from rdkit.Geometry import Point3D
-
-mol = Chem.RWMol()
-for element, charge, res_name, res_id in atoms_data:
-    a = Chem.Atom(element)
-    a.SetFormalCharge(int(charge))
-    a.SetNoImplicit(True)
-    a.SetNumExplicitHs(0)
-    
-    idx = mol.AddAtom(a)
-    
-    res_info = Chem.AtomPDBResidueInfo(element)
-    res_info.SetResidueName(res_name)
-    res_info.SetResidueNumber(int(res_id) if res_id > 0 else 1)
-    mol.GetAtomWithIdx(idx).SetMonomerInfo(res_info)
-
-for i, j, order in bonds_data:
-    if abs(order - 1.5) < 0.1:
-        btype = Chem.BondType.AROMATIC
-    elif abs(order - 2.0) < 0.1:
-        btype = Chem.BondType.DOUBLE
-    elif abs(order - 3.0) < 0.1:
-        btype = Chem.BondType.TRIPLE
-    else:
-        btype = Chem.BondType.SINGLE
-    mol.AddBond(i, j, btype)
-
-for atom in mol.GetAtoms():
-    atom.SetNoImplicit(True)
-    atom.SetNumExplicitHs(0)
-
-conf = Chem.Conformer(len(atoms_data))
-for i, p in enumerate(pos):
-    conf.SetAtomPosition(i, Point3D(p[0], p[1], p[2]))
-mol.AddConformer(conf, assignId=True)
-
-# THE CRITICAL SEQUENCE:
-# 1. Update property cache with strict=False
-mol.UpdatePropertyCache(strict=False)
-# 2. Sanitize only after properties are cached correctly
-Chem.SanitizeMol(mol)
-
-result_mol = mol
-"#), None, Some(&locals))?;
-
-        let result_mol: PyObject = locals.get_item("result_mol")?.unwrap().into();
-        Ok(result_mol)
+        crate::python::converter::to_rdkit_impl(py, &self.inner.atoms, &self.inner.bonds, &pos)
     }
 
     pub fn to_openff(&self, py: Python) -> PyResult<PyObject> {
-        let rd_mol = self.to_rdkit(py)?;
-        let _ = py.import("openff.toolkit").map_err(|_| {
-            PyErr::new::<pyo3::exceptions::PyImportError, _>("The 'openff-toolkit' library is required for to_openff(). Please install it via 'conda install openff-toolkit'.")
-        })?;
-        let _ = py.import("openff.units").map_err(|_| {
-            PyErr::new::<pyo3::exceptions::PyImportError, _>("The 'openff-units' library is required for to_openff().")
-        })?;
-
-        let pos_nm: Vec<f64> = self.inner.atoms.iter().flat_map(|a| [a.position.x * 0.1, a.position.y * 0.1, a.position.z * 0.1]).collect();
-        
-        let locals = pyo3::types::PyDict::new(py);
-        locals.set_item("rd_mol", rd_mol)?;
-        locals.set_item("pos_nm", pos_nm)?;
-
-        py.run(pyo3::ffi::c_str!(r#"
-import openff.toolkit
-import openff.units
-import numpy as np
-
-# Use allow_undefined_stereo=True to improve robustness for built structures
-molecule = openff.toolkit.Molecule.from_rdkit(rd_mol, allow_undefined_stereo=True)
-m_pos = np.array(pos_nm).reshape((-1, 3))
-molecule._conformers = [openff.units.unit.Quantity(m_pos, openff.units.unit.nanometer)]
-"#), None, Some(&locals))?;
-
-        let molecule: PyObject = locals.get_item("molecule")?.ok_or_else(|| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to generate OpenFF Molecule")
-        })?.into();
-
-        Ok(molecule)
+        let pos: Vec<[f64; 3]> = self.inner.atoms.iter().map(|a| a.position.to_array()).collect();
+        crate::python::converter::to_openff_impl(py, &self.inner.atoms, &self.inner.bonds, &pos, None)
     }
 }
 
