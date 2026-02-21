@@ -63,6 +63,14 @@ impl PySystem {
         self.bonds.iter().map(|b| (b.atom_i, b.atom_j, b.order)).collect()
     }
 
+    pub fn get_charges(&self) -> Vec<f64> {
+        self.atoms.iter().map(|a| a.charge).collect()
+    }
+
+    pub fn get_elements(&self) -> Vec<String> {
+        self.atoms.iter().map(|a| a.element.clone()).collect()
+    }
+
     #[pyo3(signature = (mic=false))]
     pub fn get_all_distances<'py>(&self, py: Python<'py>, mic: bool) -> PyResult<Bound<'py, PyArray2<f64>>> {
         let mut sys = crate::core::builder::system::System::new(self.cell);
@@ -210,11 +218,23 @@ impl PySystem {
         crate::python::converter::to_rdkit_impl(py, &sys.atoms, &sys.bonds, &pos)
     }
 
-    pub fn to_openff_topology(&self, py: Python) -> PyResult<PyObject> {
+    #[pyo3(signature = (forcefield=None))]
+    pub fn to_openff(&self, py: Python, forcefield: Option<PyObject>) -> PyResult<PyObject> {
         let pos: Vec<[f64; 3]> = self.atoms.iter().map(|a| a.position.to_array()).collect();
         let cell_nm = self.cell.iter().flatten().map(|v| v * 0.1).collect();
         
-        crate::python::converter::to_openff_impl(py, &self.atoms, &self.bonds, &pos, Some(cell_nm))
+        crate::python::converter::to_openff_impl(py, &self.atoms, &self.bonds, &pos, Some(cell_nm), forcefield)
+    }
+
+    #[staticmethod]
+    pub fn from_openff(obj: PyObject, py: Python) -> PyResult<Self> {
+        let (atoms, bonds, cell) = crate::python::converter::from_openff_impl(py, obj)?;
+        Ok(PySystem {
+            n_atoms: atoms.len(),
+            cell,
+            atoms,
+            bonds,
+        })
     }
 
     pub fn to_file(&self, path: &str) -> PyResult<()> {

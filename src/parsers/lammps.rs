@@ -9,6 +9,7 @@ pub struct LammpsFrame {
     pub box_bounds: [[f64; 2]; 3], // [xlo, xhi], [ylo, yhi], [zlo, zhi]
     pub tilt: [f64; 3],           // xy, xz, yz
     pub atom_types: Vec<usize>,
+    pub elements: Option<Vec<String>>,
     pub positions: Vec<[f64; 3]>,
 }
 
@@ -61,21 +62,33 @@ pub fn parse_dump_file(path: &str) -> Result<LammpsTrajectory> {
             let mut atoms_item_line = String::new(); // ITEM: ATOMS ...
             reader.read_line(&mut atoms_item_line)?;
             let parts: Vec<&str> = atoms_item_line.split_whitespace().collect();
-            let type_idx = parts.iter().position(|&s| s == "type").ok_or(anyhow!("No type col"))? - 2;
-            let x_idx = parts.iter().position(|&s| s == "x" || s == "xs" || s == "xu" || s == "xsu").ok_or(anyhow!("No x col"))? - 2;
-            let y_idx = x_idx + 1;
-            let z_idx = x_idx + 2;
+            
+            // Indices in header: ITEM: ATOMS id type x y z ...
+            // positions are 0-indexed relative to the words AFTER "ITEM: ATOMS"
+            let header_words = &parts[2..];
+            
+            let type_idx = header_words.iter().position(|&s| s == "type").ok_or(anyhow!("No type col"))?;
+            let x_idx = header_words.iter().position(|&s| s == "x" || s == "xs" || s == "xu" || s == "xsu").ok_or(anyhow!("No x col"))?;
+            let y_idx = header_words.iter().position(|&s| s == "y" || s == "ys" || s == "yu" || s == "ysu").ok_or(anyhow!("No y col"))?;
+            let z_idx = header_words.iter().position(|&s| s == "z" || s == "zs" || s == "zu" || s == "zsu").ok_or(anyhow!("No z col"))?;
+            let element_idx = header_words.iter().position(|&s| s == "element");
 
-            let is_scaled = parts.iter().any(|&s| s == "xs" || s == "xsu");
+            let is_scaled = header_words.iter().any(|&s| s == "xs" || s == "xsu" || s == "ys" || s == "ysu" || s == "zs" || s == "zsu");
 
             let mut atom_types = vec![0; num_atoms];
+            let mut elements = element_idx.map(|_| Vec::with_capacity(num_atoms));
             let mut positions = vec![[0.0; 3]; num_atoms];
 
             for i in 0..num_atoms {
                 let mut a_line = String::new();
                 reader.read_line(&mut a_line)?;
                 let a_parts: Vec<&str> = a_line.split_whitespace().collect();
+                
                 atom_types[i] = a_parts[type_idx].parse()?;
+                if let (Some(idx), Some(ref mut v)) = (element_idx, elements.as_mut()) {
+                    v.push(a_parts[idx].to_string());
+                }
+                
                 let p = [
                     fast_float::parse(a_parts[x_idx])?,
                     fast_float::parse(a_parts[y_idx])?,
@@ -102,6 +115,7 @@ pub fn parse_dump_file(path: &str) -> Result<LammpsTrajectory> {
                 box_bounds: [[xlo, xhi], [ylo, yhi], [zlo, zhi]],
                 tilt: [xy, xz, yz],
                 atom_types,
+                elements,
                 positions,
             });
         }
@@ -126,11 +140,6 @@ pub fn traj_to_ndarray(traj: &LammpsTrajectory) -> (Array3<f64>, Array3<f64>) {
 
         let b = frame.box_bounds;
         let t = frame.tilt;
-        // LAMMPS H-matrix:
-        // h = [ xhi-xlo, 0, 0 ]
-        //     [ xy, yhi-ylo, 0 ]
-        //     [ xz, yz, zhi-zlo ]
-        // We use the convention where cell vectors are rows
         cell_array[[f_idx, 0, 0]] = b[0][1] - b[0][0];
         cell_array[[f_idx, 1, 0]] = t[0]; // xy
         cell_array[[f_idx, 1, 1]] = b[1][1] - b[1][0];
@@ -143,12 +152,17 @@ pub fn traj_to_ndarray(traj: &LammpsTrajectory) -> (Array3<f64>, Array3<f64>) {
 }
 
 pub fn get_atom_info(frame: &LammpsFrame) -> Vec<crate::core::selection::AtomInfo> {
-    frame.atom_types.iter().enumerate().map(|(i, &t)| {
+    (0..frame.num_atoms).map(|i| {
+        let element = if let Some(ref els) = frame.elements {
+            els[i].clone()
+        } else {
+            format!("{}", frame.atom_types[i])
+        };
         crate::core::selection::AtomInfo {
             index: i,
-            element: format!("{}", t), // Default to type string
+            element,
             resname: "UNK".to_string(),
-            atom_type: t,
+            atom_type: frame.atom_types[i],
         }
     }).collect()
 }

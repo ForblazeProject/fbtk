@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use glam::{DVec3};
 use rand::seq::SliceRandom;
 use rand::Rng;
+use std::io::Write;
 
 pub use super::types::{Atom, Bond, MoleculeTemplate};
 pub use super::system::System;
@@ -208,6 +209,8 @@ impl Builder {
             let mut base = self.templates.get(&comp.name).ok_or_else(|| anyhow::anyhow!("No template"))?.clone();
             
             // Step 1: Pre-relax the monomer/molecule template
+            println!("Optimizing template for {}...", comp.name);
+            let _ = std::io::stdout().flush();
             vsepr.optimize(&mut base.atoms, &base.bonds);
             let mut base_uff = base.as_uff_system();
             uff.optimize(&mut base_uff);
@@ -242,6 +245,11 @@ impl Builder {
         self.system = Some(System::new(cell_mat));
         let system = self.system.as_mut().unwrap();
         let mut atom_id = 0;
+        let mut last_report = 0;
+        let report_interval = 2000;
+
+        println!("Starting molecule placement...");
+        let _ = std::io::stdout().flush();
         for (idx, (tmpl, res, c_idx)) in instances.into_iter().enumerate() {
             let origin = points[idx];
             let q = crate::core::linalg::random_quaternion();
@@ -259,10 +267,19 @@ impl Builder {
                 new_a.charge = atom.charge;
                 new_a.formal_charge = atom.formal_charge;
                 system.wrap_position(&mut new_a.position);
-                system.add_atom(new_a); atom_id += 1;
+                system.add_atom(new_a); 
+                atom_id += 1;
+
+                if atom_id - last_report >= report_interval {
+                    println!("... {} atoms generated", atom_id);
+                    let _ = std::io::stdout().flush();
+                    last_report = atom_id;
+                }
             }
             for b in &tmpl.bonds { system.add_bond(Bond { atom_i: start+b.atom_i, atom_j: start+b.atom_j, order: b.order }); }
         }
+        println!("Finished placement (Total {} atoms).", atom_id);
+        let _ = std::io::stdout().flush();
         Ok(())
     }
 

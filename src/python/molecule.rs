@@ -211,6 +211,14 @@ impl PyMolecule {
         self.inner.bonds.iter().map(|b| (b.atom_i, b.atom_j, b.order)).collect()
     }
 
+    pub fn get_charges(&self) -> Vec<f64> {
+        self.inner.atoms.iter().map(|a| a.charge).collect()
+    }
+
+    pub fn get_elements(&self) -> Vec<String> {
+        self.inner.atoms.iter().map(|a| a.element.clone()).collect()
+    }
+
     pub fn assign_partial_charges(&mut self) {
         self.inner.assign_partial_charges();
     }
@@ -220,9 +228,19 @@ impl PyMolecule {
         crate::python::converter::to_rdkit_impl(py, &self.inner.atoms, &self.inner.bonds, &pos)
     }
 
-    pub fn to_openff(&self, py: Python) -> PyResult<PyObject> {
+    #[pyo3(signature = (forcefield=None))]
+    pub fn to_openff(&self, py: Python, forcefield: Option<PyObject>) -> PyResult<PyObject> {
         let pos: Vec<[f64; 3]> = self.inner.atoms.iter().map(|a| a.position.to_array()).collect();
-        crate::python::converter::to_openff_impl(py, &self.inner.atoms, &self.inner.bonds, &pos, None)
+        crate::python::converter::to_openff_impl(py, &self.inner.atoms, &self.inner.bonds, &pos, None, forcefield)
+    }
+
+    #[staticmethod]
+    pub fn from_openff(obj: PyObject, py: Python) -> PyResult<Self> {
+        let (atoms, bonds, _) = crate::python::converter::from_openff_impl(py, obj)?;
+        Ok(PyMolecule {
+            inner: crate::core::builder::types::MoleculeTemplate { atoms, bonds },
+            name: "MOL".to_string(),
+        })
     }
 }
 
