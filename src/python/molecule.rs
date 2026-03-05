@@ -77,7 +77,6 @@ impl PyMolecule {
         name: Option<String>,
     ) -> PyResult<Self> {
         use crate::core::builder::config::{PolymerParams, Tacticity};
-        use crate::core::builder::model::Builder;
         use crate::core::builder::smiles::resolve_polymer_indices;
 
         let tact = match tacticity.as_deref() {
@@ -108,7 +107,7 @@ impl PyMolecule {
             if params.tail_leaving_index.is_none() { params.tail_leaving_index = tl; }
         }
 
-        let mut chain = Builder::generate_chain(&monomer.inner, &params).map_err(|e| {
+        let mut chain = crate::core::builder::polymer::generate_chain(&monomer.inner, &params).map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to generate polymer chain: {}", e))
         })?;
         
@@ -151,15 +150,7 @@ impl PyMolecule {
 
             #[pyo3(signature = (steps=None, threshold=None, verbose=true, num_threads=0, cutoff=6.0, history_size=10))]
             pub fn relax(&mut self, steps: Option<usize>, threshold: Option<f64>, verbose: bool, num_threads: usize, cutoff: f64, history_size: usize) -> PyResult<()> {
-                // Create a temporary large box
-                let mut sys = crate::core::builder::model::System::new([[50.0, 0.0, 0.0], [0.0, 50.0, 0.0], [0.0, 0.0, 50.0]]);
-                sys.atoms = self.inner.atoms.clone();
-                sys.bonds = self.inner.bonds.clone();
-                
-                // Ensure atom IDs match indices (critical for uff-relax)
-                for (i, atom) in sys.atoms.iter_mut().enumerate() {
-                    atom.id = i;
-                }
+                let mut uff_sys = self.inner.as_uff_system();
         
                 let mut p = crate::core::builder::relax::RelaxParams::default();
                 if let Some(s) = steps { p.steps = s; }
@@ -169,10 +160,15 @@ impl PyMolecule {
                 p.cutoff = cutoff;
                 p.history_size = history_size;
         
-                crate::core::builder::relax::minimize(&mut sys, p);
+                let mut optimizer = uff_relax::UffOptimizer::new(p.steps, p.threshold);
+                optimizer.verbose = p.verbose;
+                optimizer.num_threads = p.num_threads;
+                optimizer.cutoff = p.cutoff;
+                optimizer.history_size = p.history_size;
+
+                optimizer.optimize(&mut uff_sys);
         
-                // Write back relaxed coordinates
-                self.inner.atoms = sys.atoms;
+                self.inner.update_from_uff_atoms(&uff_sys.atoms);
                 Ok(())
             }
 

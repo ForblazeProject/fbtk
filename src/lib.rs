@@ -14,6 +14,13 @@ use crate::python::functions::*;
 #[cfg(feature = "python")]
 #[pymodule]
 fn fbtk(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Initialize minimal tracing subscriber to show uff-relax logs without metadata
+    let _ = tracing_subscriber::fmt()
+        .with_level(false)
+        .with_target(false)
+        .without_time()
+        .try_init();
+
     // Thread pool initialization
     if std::env::var("RAYON_NUM_THREADS").is_err() {
         let _ = rayon::ThreadPoolBuilder::new()

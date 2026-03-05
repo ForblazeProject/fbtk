@@ -1,6 +1,6 @@
 [package]
 name = "fbtk"
-version = "0.9.7"
+version = "0.9.8"
 authors = ["Forblaze Project Contributors"]
 edition = "2024"
 description = "High-performance molecular simulation toolkit with Python bindings"
@@ -35,9 +35,10 @@ purr = "0.9"
 fast-float = "0.2"
 clap = { version = "4.5", features = ["derive"] }
 vsepr-rs = "1.0.0"
-uff-relax = "1.0.5"
+uff-relax = "1.0.7"
 glam = "0.31"
 gasteiger-rs = "0.9.0"
+tracing-subscriber = "0.3"
 
 [features]
 python = ["pyo3", "numpy", "extension-module"]

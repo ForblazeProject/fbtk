@@ -4,3 +4,5 @@ pub mod system;
 pub mod model;
 pub mod smiles;
 pub mod relax;
+pub mod polymer;
+pub mod placement;

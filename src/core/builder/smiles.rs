@@ -204,6 +204,7 @@ pub fn parse_smiles_with_hydrogens(smiles: &str) -> Result<MoleculeTemplate> {
 
     // Create temporary MoleculeTemplate to use its UFF helper
     let mut tmpl = MoleculeTemplate { atoms, bonds };
+    tmpl.assign_partial_charges();
     let mut uff_sys = tmpl.as_uff_system();
     let uff = uff_relax::UffOptimizer::new(500, 0.1);
     uff.optimize(&mut uff_sys);

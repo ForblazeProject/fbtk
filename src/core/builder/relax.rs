@@ -49,11 +49,8 @@ pub fn minimize(system: &mut System, params: RelaxParams) {
 pub fn convert_to_uff_data(atoms: &[super::types::Atom], bonds: &[super::types::Bond]) -> (Vec<uff_relax::Atom>, Vec<uff_relax::Bond>) {
 
     let u_atoms = atoms.iter().map(|a| {
-
         let z = crate::core::elements::get_atomic_number(&a.element);
-
-        uff_relax::Atom::new(z, a.position)
-
+        uff_relax::Atom::new(z, a.position).with_charge(a.charge)
     }).collect();
 
 
